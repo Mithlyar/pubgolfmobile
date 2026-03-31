@@ -1,0 +1,2751 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pub Golf</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:ital,wght@0,400;0,600;0,700;1,400&family=Barlow+Condensed:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0d0b08;--surface:#1a1610;--surface2:#221e17;--surface3:#2c2720;
+    --border:#3a3228;--gold:#d4a017;--gold-light:#f0c040;
+    --red:#c0392b;--green:#27ae60;--orange:#e67e22;
+    --text:#e8dcc8;--text-dim:#a09070;--text-muted:#6a5f4a;
+    --team1:#e8a020;--team2:#3a9fd5;--team3:#c0392b;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Barlow',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;
+    background-image:radial-gradient(ellipse at 20% 0%,rgba(212,160,23,0.08) 0%,transparent 50%),
+      radial-gradient(ellipse at 80% 100%,rgba(200,112,32,0.06) 0%,transparent 50%);}
+
+  #sync-bar{position:fixed;top:0;left:0;right:0;z-index:200;height:3px;transition:background 0.3s;}
+  #sync-bar.syncing{background:linear-gradient(90deg,transparent,var(--gold),transparent);animation:syncpulse 1s infinite;}
+  #sync-bar.online{background:var(--green);}
+  #sync-bar.offline{background:var(--red);}
+  @keyframes syncpulse{0%,100%{opacity:0.4}50%{opacity:1}}
+  .sync-indicator{position:fixed;top:8px;right:12px;z-index:201;font-family:'Barlow Condensed',sans-serif;
+    font-size:11px;letter-spacing:1.5px;text-transform:uppercase;padding:3px 8px;border-radius:10px;pointer-events:none;transition:all 0.3s;}
+  .sync-indicator.online{background:rgba(39,174,96,0.2);color:var(--green);border:1px solid rgba(39,174,96,0.4);}
+  .sync-indicator.offline{background:rgba(192,57,43,0.2);color:var(--red);border:1px solid rgba(192,57,43,0.4);}
+  .sync-indicator.syncing{background:rgba(212,160,23,0.2);color:var(--gold);border:1px solid rgba(212,160,23,0.4);}
+
+  /* Login */
+  #login-overlay{position:fixed;inset:0;z-index:500;background:var(--bg);
+    display:flex;align-items:center;justify-content:center;flex-direction:column;
+    background-image:radial-gradient(ellipse at 20% 0%,rgba(212,160,23,0.1) 0%,transparent 50%),
+      radial-gradient(ellipse at 80% 100%,rgba(200,112,32,0.08) 0%,transparent 50%);}
+  #login-overlay.hidden{display:none;}
+  .login-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;
+    padding:36px 32px;width:320px;max-width:92vw;text-align:center;box-shadow:0 8px 64px rgba(0,0,0,0.8);}
+  .login-box .login-icon{font-size:52px;margin-bottom:12px;}
+  .login-box h2{font-family:'Bebas Neue',sans-serif;font-size:30px;letter-spacing:3px;color:var(--gold);margin-bottom:4px;}
+  .login-box p{font-size:13px;color:var(--text-muted);font-family:'Barlow Condensed',sans-serif;
+    letter-spacing:1.5px;text-transform:uppercase;margin-bottom:20px;}
+  .login-team-btns{display:flex;flex-direction:column;gap:10px;margin-bottom:16px;}
+  .login-team-btn{padding:12px 16px;border-radius:10px;border:1px solid var(--border);
+    background:var(--surface2);color:var(--text);font-family:'Bebas Neue',sans-serif;
+    font-size:18px;letter-spacing:2px;cursor:pointer;transition:all 0.2s;text-align:left;display:flex;align-items:center;gap:10px;}
+  .login-team-btn:hover{border-color:var(--gold);background:var(--surface3);}
+  .login-team-btn.t1{border-left:4px solid var(--team1);}
+  .login-team-btn.t2{border-left:4px solid var(--team2);}
+  .login-team-btn.t3{border-left:4px solid var(--team3);}
+  .login-team-btn.admin-btn{border-left:4px solid var(--gold);color:var(--gold);}
+  #login-pw-row{display:none;flex-direction:column;gap:10px;}
+  #login-pw-row.visible{display:flex;}
+  #login-pw-label{font-family:'Barlow Condensed',sans-serif;font-size:13px;letter-spacing:2px;
+    text-transform:uppercase;color:var(--text-dim);text-align:center;margin-top:4px;}
+  #login-pw-input{background:var(--surface2);border:1px solid var(--border);border-radius:10px;
+    color:var(--text);font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:8px;
+    text-align:center;padding:12px 20px;width:100%;transition:border-color 0.2s;}
+  #login-pw-input:focus{outline:none;border-color:var(--gold);box-shadow:0 0 12px rgba(212,160,23,0.2);}
+  #login-error{color:var(--red);font-family:'Barlow Condensed',sans-serif;font-size:13px;letter-spacing:2px;text-transform:uppercase;height:18px;text-align:center;}
+  .login-back-btn{background:none;border:none;color:var(--text-muted);cursor:pointer;
+    font-family:'Barlow Condensed',sans-serif;font-size:13px;letter-spacing:1.5px;text-transform:uppercase;padding:6px;transition:color 0.2s;}
+  .login-back-btn:hover{color:var(--text);}
+
+  /* Session bar */
+  #session-bar{background:var(--surface);border-bottom:1px solid var(--border);
+    padding:6px 20px;display:flex;align-items:center;justify-content:space-between;font-size:12px;
+    font-family:'Barlow Condensed',sans-serif;letter-spacing:1.5px;text-transform:uppercase;}
+  #session-who{color:var(--text-dim);}
+  #session-who strong{color:var(--gold);}
+  .btn-logout{background:none;border:1px solid var(--border);border-radius:6px;
+    color:var(--text-muted);cursor:pointer;font-family:'Barlow Condensed',sans-serif;
+    font-size:11px;letter-spacing:1.5px;text-transform:uppercase;padding:4px 10px;transition:all 0.2s;}
+  .btn-logout:hover{border-color:var(--red);color:var(--red);}
+
+  .nav-badge{display:inline-block;background:var(--orange);color:#fff;border-radius:10px;
+    font-size:10px;font-weight:700;padding:1px 5px;margin-left:4px;vertical-align:middle;}
+
+  .app-header{background:linear-gradient(180deg,#1a1610 0%,#0d0b08 100%);border-bottom:2px solid var(--gold);
+    padding:16px 20px 12px;text-align:center;position:sticky;top:0;z-index:100;box-shadow:0 4px 32px rgba(0,0,0,0.8);}
+  .app-header h1{font-family:'Bebas Neue',sans-serif;font-size:clamp(28px,6vw,48px);letter-spacing:4px;
+    color:var(--gold);text-shadow:0 0 30px rgba(212,160,23,0.4);line-height:1;}
+  .app-header .subtitle{font-family:'Barlow Condensed',sans-serif;font-size:13px;letter-spacing:3px;color:var(--text-dim);text-transform:uppercase;margin-top:2px;}
+
+  .nav-tabs{display:flex;background:var(--surface);border-bottom:1px solid var(--border);overflow-x:auto;scrollbar-width:none;}
+  .nav-tabs::-webkit-scrollbar{display:none;}
+  .nav-tab{flex:1;min-width:72px;padding:12px 5px;text-align:center;font-family:'Barlow Condensed',sans-serif;
+    font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-muted);cursor:pointer;
+    border-bottom:3px solid transparent;transition:all 0.2s;white-space:nowrap;}
+  .nav-tab:hover{color:var(--text-dim);background:var(--surface2);}
+  .nav-tab.active{color:var(--gold);border-bottom-color:var(--gold);background:var(--surface2);}
+
+  .page{
+    display:none;padding:16px 14px;padding-bottom:24px;max-width:960px;margin:0 auto;
+    opacity:0;transform:translateY(12px);
+    animation:none;
+  }
+  .page.active{
+    display:block;
+    animation:page-in 0.22s cubic-bezier(0.22,1,0.36,1) forwards;
+  }
+  @keyframes page-in{
+    from{opacity:0;transform:translateY(10px);}
+    to{opacity:1;transform:translateY(0);}
+  }
+  /* .page.active handled by animation */
+  .section-title{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:3px;color:var(--gold);
+    margin-bottom:16px;display:flex;align-items:center;gap:10px;}
+  .section-title::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--border),transparent);}
+  .golf-note{display:inline-flex;align-items:center;gap:6px;background:rgba(212,160,23,0.1);
+    border:1px solid rgba(212,160,23,0.3);border-radius:6px;padding:6px 12px;font-family:'Barlow Condensed',sans-serif;
+    font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold);margin-bottom:14px;}
+
+  .scoreboard{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:28px;}
+  .score-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 10px 16px;
+    text-align:center;position:relative;overflow:hidden;transition:transform 0.2s;}
+  .score-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+  .score-card.t1::before{background:var(--team1);}.score-card.t2::before{background:var(--team2);}.score-card.t3::before{background:var(--team3);}
+  .score-card:hover{transform:translateY(-2px);}
+  .score-card.leader{border-color:var(--gold);box-shadow:0 0 20px rgba(212,160,23,0.2);}
+  .team-photo-wrap{width:60px;height:60px;border-radius:50%;margin:0 auto 8px;overflow:hidden;
+    border:2px solid var(--border);background:var(--surface3);display:flex;align-items:center;justify-content:center;font-size:24px;}
+  .score-card.t1 .team-photo-wrap{border-color:var(--team1);}.score-card.t2 .team-photo-wrap{border-color:var(--team2);}.score-card.t3 .team-photo-wrap{border-color:var(--team3);}
+  .team-photo-wrap img{width:100%;height:100%;object-fit:cover;}
+  .score-card .team-name{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;margin-bottom:4px;line-height:1.1;}
+  .score-card.t1 .team-name{color:var(--team1);}.score-card.t2 .team-name{color:var(--team2);}.score-card.t3 .team-name{color:var(--team3);}
+  .score-card .total-score{font-family:'Bebas Neue',sans-serif;font-size:44px;line-height:1;color:var(--text);}
+  .score-card .score-label{font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted);margin-top:4px;}
+  .leader-badge{display:inline-block;font-family:'Barlow Condensed',sans-serif;font-size:10px;letter-spacing:1.5px;
+    text-transform:uppercase;background:var(--gold);color:#000;padding:2px 7px;border-radius:10px;font-weight:700;margin-top:4px;}
+
+  .hole-table-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--border);}
+  table{width:100%;border-collapse:collapse;font-size:14px;}
+  th{background:var(--surface3);font-family:'Barlow Condensed',sans-serif;font-size:12px;letter-spacing:2px;
+    text-transform:uppercase;color:var(--text-muted);padding:10px 12px;text-align:center;border-bottom:1px solid var(--border);white-space:nowrap;}
+  th.hole-col{text-align:left;}
+  td{padding:8px 10px;border-bottom:1px solid var(--border);text-align:center;vertical-align:middle;}
+  td.hole-info{text-align:left;}
+  tr:last-child td{border-bottom:none;}
+  tr:hover td{background:rgba(255,255,255,0.02);}
+  .hole-num{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--gold);width:28px;display:inline-block;text-align:center;}
+  .hole-drink{font-family:'Barlow Condensed',sans-serif;font-size:12px;letter-spacing:1px;color:var(--text-muted);}
+  .totals-row td{font-family:'Bebas Neue',sans-serif;font-size:18px;border-top:2px solid var(--border);background:var(--surface3);}
+  .totals-row td.label{text-align:left;color:var(--gold);font-size:14px;letter-spacing:2px;}
+
+  .score-cell{display:flex;flex-direction:column;align-items:center;gap:3px;}
+  .score-input{width:52px;background:var(--surface3);border:1px solid var(--border);border-radius:6px;
+    color:var(--text);font-family:'Bebas Neue',sans-serif;font-size:20px;text-align:center;padding:4px;
+    transition:border-color 0.2s;appearance:none;-moz-appearance:textfield;}
+  .score-input::-webkit-outer-spin-button,.score-input::-webkit-inner-spin-button{-webkit-appearance:none;}
+  .score-input:focus{outline:none;box-shadow:0 0 8px rgba(212,160,23,0.2);}
+  .score-input.t1:focus{border-color:var(--team1);}.score-input.t2:focus{border-color:var(--team2);}.score-input.t3:focus{border-color:var(--team3);}
+  .score-input.pending{border:2px dashed var(--orange)!important;color:var(--orange);}
+  .score-input.confirmed{border:1px solid var(--green)!important;}
+  .score-input[disabled]{opacity:0.4;cursor:not-allowed;}
+  .score-status{font-size:10px;font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;line-height:1;}
+  .score-status.pending{color:var(--orange);}.score-status.confirmed{color:var(--green);}
+
+  /* Approval panel */
+  .approval-card{background:var(--surface2);border:2px solid var(--orange);border-radius:12px;padding:18px;margin-bottom:24px;}
+  .approval-card h3{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:2px;color:var(--orange);margin-bottom:14px;}
+  .approval-row{display:flex;align-items:center;gap:10px;background:var(--surface3);border-radius:8px;
+    padding:10px 14px;margin-bottom:8px;flex-wrap:wrap;}
+  .approval-row:last-child{margin-bottom:0;}
+  .ar-type{font-size:18px;flex-shrink:0;}
+  .ar-score{font-family:'Bebas Neue',sans-serif;font-size:26px;color:var(--orange);width:38px;text-align:center;flex-shrink:0;}
+  .ar-info{flex:1;min-width:110px;}
+  .ar-pub{font-weight:700;color:var(--text);font-size:14px;}
+  .ar-team{font-family:'Barlow Condensed',sans-serif;font-size:12px;letter-spacing:1px;text-transform:uppercase;margin-top:2px;}
+  .ar-kind{font-family:'Barlow Condensed',sans-serif;font-size:10px;letter-spacing:1px;text-transform:uppercase;
+    padding:2px 6px;border-radius:4px;display:inline-block;margin-top:3px;}
+  .ar-kind.hole{background:rgba(212,160,23,0.15);color:var(--gold);}
+  .ar-kind.quest{background:rgba(39,174,96,0.15);color:var(--green);}
+  .ar-kind.penalty{background:rgba(192,57,43,0.15);color:var(--red);}
+  .approval-actions{display:flex;gap:6px;}
+  .btn-approve{background:var(--green);color:#fff;border:none;border-radius:6px;padding:8px 14px;
+    font-family:'Barlow Condensed',sans-serif;font-size:13px;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;transition:filter 0.2s;}
+  .btn-approve:hover{filter:brightness(1.2);}
+  .btn-reject{background:transparent;color:var(--red);border:1px solid var(--red);border-radius:6px;padding:8px 14px;
+    font-family:'Barlow Condensed',sans-serif;font-size:13px;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;transition:all 0.2s;}
+  .btn-reject:hover{background:var(--red);color:#fff;}
+  .no-pending{color:var(--green);font-family:'Barlow Condensed',sans-serif;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;}
+
+  /* Quests & Penalties shared card */
+  .qp-list{display:flex;flex-direction:column;gap:10px;}
+  .qp-item{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;}
+  .qp-item.penalty-item{border-color:rgba(192,57,43,0.3);}
+  .qp-top{display:flex;align-items:center;gap:14px;margin-bottom:10px;}
+  .qp-emoji{font-size:24px;flex-shrink:0;}
+  .qp-desc{flex:1;}
+  .qp-desc strong{display:block;color:var(--text);font-weight:700;}
+  .qp-desc span{font-size:13px;color:var(--text-muted);}
+  .qp-pts{font-family:'Bebas Neue',sans-serif;font-size:22px;white-space:nowrap;flex-shrink:0;}
+  .qp-pts.quest-pts{color:var(--green);}
+  .qp-pts.penalty-pts{color:var(--red);}
+  .qp-team-row{display:flex;gap:8px;flex-wrap:wrap;}
+  .qp-team-btn{flex:1;min-width:80px;display:flex;flex-direction:column;align-items:center;gap:5px;
+    padding:8px 6px;border-radius:8px;border:1px solid var(--border);background:var(--surface3);
+    cursor:pointer;transition:all 0.2s;font-family:'Barlow Condensed',sans-serif;font-size:12px;
+    letter-spacing:1px;text-transform:uppercase;color:var(--text-dim);}
+  .qp-team-btn:hover:not(.locked){background:var(--surface2);}
+  .qp-team-btn.aw-t1{background:rgba(232,160,32,0.15);border-color:var(--team1);color:var(--team1);}
+  .qp-team-btn.aw-t2{background:rgba(58,159,213,0.15);border-color:var(--team2);color:var(--team2);}
+  .qp-team-btn.aw-t3{background:rgba(192,57,43,0.15);border-color:var(--team3);color:var(--team3);}
+  .qp-team-btn.pend-t1{background:rgba(232,160,32,0.07);border:2px dashed var(--team1);color:var(--team1);opacity:0.75;}
+  .qp-team-btn.pend-t2{background:rgba(58,159,213,0.07);border:2px dashed var(--team2);color:var(--team2);opacity:0.75;}
+  .qp-team-btn.pend-t3{background:rgba(192,57,43,0.07);border:2px dashed var(--team3);color:var(--team3);opacity:0.75;}
+  .qp-team-btn .award-check{font-size:18px;}
+  .qp-team-btn.locked{pointer-events:none;opacity:0.4;cursor:not-allowed;}
+  .qp-admin-note{font-size:11px;color:var(--text-muted);font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;margin-top:6px;}
+
+  /* Admin */
+  #admin-lock{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:50vh;gap:20px;text-align:center;}
+  #admin-lock .lock-icon{font-size:56px;opacity:0.6;}
+  #admin-lock h2{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:3px;color:var(--gold);}
+  #admin-lock p{font-size:14px;color:var(--text-muted);font-family:'Barlow Condensed',sans-serif;letter-spacing:1.5px;text-transform:uppercase;}
+  #admin-pw-input{background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);
+    font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:8px;text-align:center;padding:12px 20px;width:200px;transition:border-color 0.2s;}
+  #admin-pw-input:focus{outline:none;border-color:var(--gold);box-shadow:0 0 12px rgba(212,160,23,0.2);}
+  .lock-error{color:var(--red);font-family:'Barlow Condensed',sans-serif;font-size:14px;letter-spacing:2px;text-transform:uppercase;height:20px;}
+  #admin-content{display:none;}
+  .admin-grid{display:flex;flex-direction:column;gap:24px;}
+  .admin-card{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:20px;}
+  .admin-card h3{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:2px;color:var(--gold);
+    margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border);}
+  .form-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
+  .form-row input,.form-row select{background:var(--surface3);border:1px solid var(--border);border-radius:8px;
+    color:var(--text);font-family:'Barlow',sans-serif;font-size:14px;padding:9px 12px;flex:1;min-width:120px;transition:border-color 0.2s;}
+  .form-row input:focus,.form-row select:focus{outline:none;border-color:var(--gold);}
+  .form-row select option{background:var(--surface2);}
+  .btn{font-family:'Barlow Condensed',sans-serif;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;
+    padding:10px 18px;border-radius:8px;border:none;cursor:pointer;transition:all 0.2s;white-space:nowrap;}
+  .btn-gold{background:var(--gold);color:#000;font-weight:700;}
+  .btn-gold:hover{background:var(--gold-light);transform:translateY(-1px);}
+  .btn-danger{background:transparent;border:1px solid var(--red);color:var(--red);}
+  .btn-danger:hover{background:var(--red);color:#fff;}
+  .btn-outline{background:transparent;border:1px solid var(--border);color:var(--text-dim);}
+  .btn-outline:hover{border-color:var(--gold);color:var(--gold);}
+  .btn-sm{padding:6px 12px;font-size:12px;}
+  .item-list{display:flex;flex-direction:column;gap:8px;margin-top:12px;}
+  .item-row{display:flex;align-items:center;gap:10px;background:var(--surface3);border-radius:8px;padding:10px 14px;font-size:14px;}
+  .item-row .item-num{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--gold);width:24px;text-align:center;flex-shrink:0;}
+  .item-row .item-text{flex:1;}
+  .item-row .item-sub{font-size:12px;color:var(--text-muted);margin-top:2px;}
+  .item-row .item-actions{display:flex;gap:6px;}
+  .team-3-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+  .team-col{display:flex;flex-direction:column;align-items:center;gap:8px;}
+  .team-col label{font-family:'Barlow Condensed',sans-serif;font-size:12px;letter-spacing:2px;text-transform:uppercase;}
+  .team-col.t1 label{color:var(--team1);}.team-col.t2 label{color:var(--team2);}.team-col.t3 label{color:var(--team3);}
+  .team-col input[type="text"]{background:var(--surface3);border:1px solid var(--border);border-radius:8px;color:var(--text);
+    font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;padding:7px 10px;width:100%;text-align:center;transition:border-color 0.2s;}
+  .team-col.t1 input[type="text"]:focus{border-color:var(--team1);outline:none;}
+  .team-col.t2 input[type="text"]:focus{border-color:var(--team2);outline:none;}
+  .team-col.t3 input[type="text"]:focus{border-color:var(--team3);outline:none;}
+  .photo-circle{width:72px;height:72px;border-radius:50%;overflow:hidden;border:2px solid var(--border);
+    background:var(--surface3);display:flex;align-items:center;justify-content:center;font-size:26px;cursor:pointer;transition:transform 0.2s;}
+  .photo-circle:hover{transform:scale(1.05);}
+  .team-col.t1 .photo-circle{border-color:var(--team1);}.team-col.t2 .photo-circle{border-color:var(--team2);}.team-col.t3 .photo-circle{border-color:var(--team3);}
+  .photo-circle img{width:100%;height:100%;object-fit:cover;}
+  .photo-hint{font-size:11px;color:var(--text-muted);font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-align:center;}
+  input[type="file"]{display:none;}
+  .drink-tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+  .drink-tag{background:var(--surface3);border:1px solid var(--border);border-radius:20px;padding:5px 14px;font-size:13px;display:flex;align-items:center;gap:8px;}
+  .drink-tag button{background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:14px;line-height:1;padding:0;transition:color 0.2s;}
+  .drink-tag button:hover{color:var(--red);}
+  .pw-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
+  .pw-row{display:flex;flex-direction:column;gap:6px;}
+  .pw-row label{font-family:'Barlow Condensed',sans-serif;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-muted);}
+  .pw-row input{background:var(--surface3);border:1px solid var(--border);border-radius:8px;color:var(--text);
+    font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:4px;padding:9px 12px;width:100%;text-align:center;transition:border-color 0.2s;}
+  .pw-row input:focus{outline:none;border-color:var(--gold);}
+  .pw-row.t1 label{color:var(--team1);}.pw-row.t1 input:focus{border-color:var(--team1);}
+  .pw-row.t2 label{color:var(--team2);}.pw-row.t2 input:focus{border-color:var(--team2);}
+  .pw-row.t3 label{color:var(--team3);}.pw-row.t3 input:focus{border-color:var(--team3);}
+  .pw-row.admin label{color:var(--gold);}
+
+  /* Leaderboard breakdown */
+  .lb-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--border);margin-top:10px;}
+  .lb-tbl{width:100%;border-collapse:collapse;font-size:13px;}
+  .lb-tbl th{background:var(--surface3);font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:1.5px;
+    text-transform:uppercase;color:var(--text-muted);padding:9px 10px;text-align:center;border-bottom:1px solid var(--border);white-space:nowrap;}
+  .lb-tbl th.rl{text-align:left;min-width:150px;}
+  .lb-tbl td{padding:7px 10px;border-bottom:1px solid var(--border);text-align:center;vertical-align:middle;}
+  .lb-tbl td.rl{text-align:left;font-size:13px;white-space:nowrap;}
+  .lb-tbl tr:last-child td{border-bottom:none;}
+  .lb-tbl .shdr td{background:rgba(255,255,255,0.03);font-family:'Barlow Condensed',sans-serif;
+    font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted);padding:5px 10px;}
+  .lb-tbl .sub-tot td{background:rgba(255,255,255,0.025);}
+  .lb-tbl .grand-tot td{font-family:'Bebas Neue',sans-serif;font-size:22px;border-top:2px solid var(--border);
+    background:var(--surface3);padding:10px;}
+  .lb-tbl .grand-tot td.rl{font-size:15px;letter-spacing:2px;color:var(--gold);}
+  .pill{display:inline-block;padding:2px 7px;border-radius:4px;font-family:'Barlow Condensed',sans-serif;
+    font-size:11px;letter-spacing:1px;text-transform:uppercase;}
+  .pill.conf-hole{background:rgba(212,160,23,0.15);color:var(--gold);border:1px solid rgba(212,160,23,0.3);}
+  .pill.conf-quest{background:rgba(39,174,96,0.15);color:var(--green);border:1px solid rgba(39,174,96,0.3);}
+  .pill.conf-penalty{background:rgba(192,57,43,0.15);color:var(--red);border:1px solid rgba(192,57,43,0.3);}
+  .pill.pend{background:rgba(230,126,34,0.15);color:var(--orange);border:1px solid rgba(230,126,34,0.3);}
+
+  #toast{position:fixed;bottom:84px;left:50%;transform:translateX(-50%) translateY(200px);background:var(--gold);color:#000;
+    font-family:'Barlow Condensed',sans-serif;font-size:15px;letter-spacing:1.5px;text-transform:uppercase;
+    padding:12px 24px;border-radius:30px;font-weight:700;transition:transform 0.3s ease;z-index:999;pointer-events:none;}
+  #toast.show{transform:translateX(-50%) translateY(0);}
+  .empty-state{text-align:center;padding:40px 20px;color:var(--text-muted);font-family:'Barlow Condensed',sans-serif;font-size:16px;letter-spacing:2px;text-transform:uppercase;}
+  .empty-state .icon{font-size:40px;display:block;margin-bottom:12px;opacity:0.4;}
+
+  /* Lightbox (quest proof photos) */
+  #lightbox{
+    position:fixed;
+    top: env(safe-area-inset-top, 0);
+    left: env(safe-area-inset-left, 0);
+    right: env(safe-area-inset-right, 0);
+    bottom: env(safe-area-inset-bottom, 0);
+    z-index:900;
+    background:rgba(0,0,0,0.96);
+    display:none;
+    flex-direction:column;
+    align-items:stretch;
+    justify-content:space-between;
+    overflow:hidden;
+  }
+  #lightbox.open{display:flex;}
+  #lightbox-close{
+    align-self: flex-end;
+    margin: 12px 16px 0;
+    font-size:28px; color:#fff; cursor:pointer; line-height:1;
+    background:rgba(255,255,255,0.12); border:none;
+    border-radius:50%; width:44px; height:44px;
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+  }
+  #lightbox-close:hover{background:rgba(255,255,255,0.22);}
+  /* image fill area */
+  #lightbox > .lb-img-area {
+    flex:1; display:flex; align-items:center; justify-content:center;
+    overflow:hidden; min-height:0; padding: 8px 16px;
+  }
+  #lightbox-img{
+    max-width:100%; max-height:100%;
+    width:auto; height:auto;
+    object-fit:contain; border-radius:8px;
+    box-shadow:0 8px 40px rgba(0,0,0,0.6);
+  }
+  #lightbox-caption{
+    font-family:'Barlow Condensed',sans-serif; font-size:13px; letter-spacing:1.5px;
+    text-transform:uppercase; color:rgba(255,255,255,0.55); text-align:center;
+    padding:12px 20px 16px; flex-shrink:0;
+  }
+
+  /* Quest per-team photo grid */
+  .quest-photo-grid{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+  .quest-photo-slot{flex:1;min-width:80px;border-radius:8px;border:1px dashed var(--border);
+    background:var(--surface3);overflow:hidden;position:relative;cursor:pointer;transition:border-color 0.2s;}
+  .quest-photo-slot:hover{border-color:var(--gold);}
+  .quest-photo-slot img{width:100%;height:100px;object-fit:cover;display:block;}
+  .quest-photo-slot .qps-label{font-family:'Barlow Condensed',sans-serif;font-size:10px;letter-spacing:1px;
+    text-transform:uppercase;color:var(--text-muted);padding:6px 8px 4px;text-align:center;}
+  .quest-photo-slot .qps-add{display:flex;flex-direction:column;align-items:center;justify-content:center;
+    height:100px;gap:4px;font-size:24px;}
+  .quest-photo-slot .qps-add span{font-family:'Barlow Condensed',sans-serif;font-size:10px;letter-spacing:1px;
+    text-transform:uppercase;color:var(--text-muted);}
+  .quest-photo-slot .qps-del{position:absolute;top:4px;right:4px;background:rgba(192,57,43,0.9);
+    color:#fff;border:none;border-radius:6px;font-size:13px;padding:4px 8px;cursor:pointer;line-height:1.4;
+    min-width:28px;min-height:28px;display:flex;align-items:center;justify-content:center;}
+
+  /* Dynamic team management */
+  .team-mgmt-row{display:flex;align-items:center;gap:10px;background:var(--surface3);
+    border-radius:8px;padding:10px 14px;margin-bottom:8px;}
+  .team-mgmt-color{width:14px;height:14px;border-radius:50%;flex-shrink:0;}
+  .team-mgmt-name{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;flex:1;}
+  .team-color-swatch{width:28px;height:28px;border-radius:6px;border:2px solid var(--border);
+    cursor:pointer;flex-shrink:0;transition:transform 0.15s;}
+  .team-color-swatch:hover{transform:scale(1.1);}
+  .color-picker-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;}
+  .color-opt{width:24px;height:24px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:all 0.15s;}
+  .color-opt:hover,.color-opt.selected{border-color:#fff;transform:scale(1.15);}
+
+  /* ── Pirate minigame ───────────────────────────────────────────────────── */
+  #pirate-lock{display:flex;flex-direction:column;align-items:center;justify-content:center;
+    min-height:60vh;gap:20px;text-align:center;padding:20px;}
+  #pirate-lock .lock-icon{font-size:64px;}
+  #pirate-lock h2{font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:3px;color:var(--gold);}
+  #pirate-lock p{font-size:13px;color:var(--text-muted);font-family:'Barlow Condensed',sans-serif;
+    letter-spacing:1.5px;text-transform:uppercase;}
+  #pirate-pw-input{background:var(--surface2);border:1px solid var(--border);border-radius:10px;
+    color:var(--text);font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:8px;
+    text-align:center;padding:12px 20px;width:200px;transition:border-color 0.2s;}
+  #pirate-pw-input:focus{outline:none;border-color:var(--gold);box-shadow:0 0 12px rgba(212,160,23,0.2);}
+  #pirate-pw-error{color:var(--red);font-family:'Barlow Condensed',sans-serif;font-size:13px;
+    letter-spacing:2px;text-transform:uppercase;height:18px;}
+
+  #pirate-game{display:none;flex-direction:column;align-items:center;gap:0;padding-bottom:40px;}
+  #pirate-game.active{display:flex;}
+
+  /* Team spotlight */
+  .pirate-team-spotlight{width:100%;background:linear-gradient(135deg,var(--surface2) 0%,var(--surface3) 100%);
+    border-bottom:3px solid var(--gold);padding:24px 20px 20px;text-align:center;position:relative;overflow:hidden;}
+  .pirate-team-spotlight::before{content:'';position:absolute;inset:0;opacity:0.06;
+    background:radial-gradient(circle at 50% 0%,var(--spotlight-color,#e8a020) 0%,transparent 70%);}
+  .pirate-avatar{width:100px;height:100px;border-radius:50%;margin:0 auto 12px;overflow:hidden;
+    border:4px solid var(--spotlight-color,var(--gold));background:var(--surface3);
+    display:flex;align-items:center;justify-content:center;font-size:40px;
+    box-shadow:0 0 32px color-mix(in srgb,var(--spotlight-color,var(--gold)) 40%,transparent);
+    transition:all 0.4s;}
+  .pirate-avatar img{width:100%;height:100%;object-fit:cover;}
+  .pirate-team-name{font-family:'Bebas Neue',sans-serif;font-size:clamp(28px,7vw,52px);
+    letter-spacing:4px;line-height:1;margin-bottom:6px;transition:color 0.4s;}
+  .pirate-turn-label{font-family:'Barlow Condensed',sans-serif;font-size:13px;letter-spacing:3px;
+    text-transform:uppercase;color:var(--text-muted);}
+  .pirate-progress{display:flex;gap:4px;justify-content:center;margin-top:14px;flex-wrap:wrap;}
+  .pirate-pip{width:10px;height:10px;border-radius:50%;background:var(--border);transition:background 0.3s;}
+  .pirate-pip.done{background:var(--green);}
+  .pirate-pip.current{background:var(--gold);box-shadow:0 0 6px rgba(212,160,23,0.6);}
+
+  /* Dare card */
+  .pirate-dare-wrap{width:100%;max-width:600px;padding:24px 20px 0;margin:0 auto;}
+  .pirate-dare-card{background:var(--surface2);border:1px solid var(--border);border-radius:16px;
+    padding:32px 24px;text-align:center;position:relative;overflow:hidden;
+    box-shadow:0 8px 40px rgba(0,0,0,0.4);}
+  .pirate-dare-card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;
+    background:var(--spotlight-color,var(--gold));}
+  .pirate-dare-type{font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:3px;
+    text-transform:uppercase;color:var(--text-muted);margin-bottom:14px;}
+  .pirate-dare-emoji{font-size:52px;margin-bottom:16px;display:block;
+    animation:dare-in 0.28s cubic-bezier(0.22,1,0.36,1) both;}
+  @keyframes dare-in{0%{transform:translateX(40px) scale(0.97);opacity:0;}100%{transform:scale(1);opacity:1}}
+  .pirate-dare-text{font-family:'Barlow',sans-serif;font-size:clamp(18px,4vw,26px);
+    font-weight:700;color:var(--text);line-height:1.4;margin-bottom:8px;}
+  .pirate-dare-desc{font-family:'Barlow Condensed',sans-serif;font-size:14px;letter-spacing:1px;
+    color:var(--text-muted);line-height:1.5;}
+  .pirate-counter{font-family:'Barlow Condensed',sans-serif;font-size:12px;letter-spacing:2px;
+    text-transform:uppercase;color:var(--text-muted);margin-top:16px;}
+
+  /* Buttons row */
+  .pirate-btn-row{width:100%;max-width:600px;padding:20px 20px 0;margin:0 auto;
+    display:flex;gap:12px;flex-wrap:wrap;}
+  .pirate-next-btn{flex:1;min-width:160px;background:var(--gold);color:#000;border:none;
+    border-radius:12px;padding:16px 24px;font-family:'Bebas Neue',sans-serif;font-size:22px;
+    letter-spacing:3px;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;
+    justify-content:center;gap:10px;}
+  .pirate-next-btn:hover{background:var(--gold-light);transform:translateY(-2px);box-shadow:0 6px 24px rgba(212,160,23,0.3);}
+  .pirate-skip-btn{background:transparent;border:1px solid var(--border);border-radius:12px;
+    padding:16px 20px;font-family:'Barlow Condensed',sans-serif;font-size:14px;letter-spacing:2px;
+    text-transform:uppercase;color:var(--text-muted);cursor:pointer;transition:all 0.2s;}
+  .pirate-skip-btn:hover{border-color:var(--text-dim);color:var(--text-dim);}
+  .pirate-restart-btn{width:100%;max-width:600px;margin:16px auto 0;background:transparent;
+    border:1px solid var(--border);border-radius:10px;padding:12px 20px;font-family:'Barlow Condensed',sans-serif;
+    font-size:13px;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted);cursor:pointer;transition:all 0.2s;display:block;}
+  .pirate-restart-btn:hover{border-color:var(--gold);color:var(--gold);}
+
+  /* Finished screen */
+  .pirate-finished{text-align:center;padding:40px 20px;display:none;}
+  .pirate-finished.active{display:block;}
+  .pirate-finished .fin-icon{font-size:64px;margin-bottom:16px;display:block;}
+  .pirate-finished h3{font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:3px;color:var(--gold);margin-bottom:8px;}
+  .pirate-finished p{font-family:'Barlow Condensed',sans-serif;font-size:14px;letter-spacing:2px;
+    text-transform:uppercase;color:var(--text-muted);margin-bottom:24px;}
+
+  /* Admin pirate card */
+  .pirate-dare-list{display:flex;flex-direction:column;gap:8px;margin-top:12px;}
+
+  @media(max-width:500px){
+    .scoreboard{gap:8px;}.score-card .total-score{font-size:32px;}
+    .team-photo-wrap{width:48px;height:48px;font-size:20px;}
+    .team-3-grid{gap:8px;}.photo-circle{width:56px;font-size:20px;}
+    .pw-grid{grid-template-columns:1fr;}
+    .pirate-next-btn{font-size:18px;padding:14px 16px;}
+    /* Score inputs larger on small screens */
+    .score-input{width:48px;font-size:22px;}
+    /* Bottom bar buttons larger */
+    .btn-approve,.btn-reject{padding:10px 12px;font-size:12px;}
+    /* Gallery grid 2 cols on narrow */
+    .gallery-grid{grid-template-columns:repeat(2,1fr);}
+    /* Approval rows stack more neatly */
+    .approval-row{gap:8px;}
+    .ar-score{font-size:22px;width:32px;}
+  }
+
+  /* Body lock when lightbox is open — prevents background scroll on iOS */
+  body.lightbox-open {
+    overflow: hidden;
+    /* iOS Safari needs position fixed to truly prevent scroll */
+    position: fixed;
+    width: 100%;
+  }
+
+  /* ── Mobile layout ───────────────────────────────────────────────────── */
+  body { padding-bottom: 72px; } /* space for bottom nav */
+
+  /* Sync indicator hidden — replaced by dot in header */
+  .sync-indicator { display: none !important; }
+
+  /* App header — mobile first */
+  .app-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 16px; height: 56px; text-align: left;
+    position: sticky; top: 3px; z-index: 100;
+  }
+  .app-header h1 { font-size: 22px; letter-spacing: 3px; }
+  .app-header .subtitle { font-size: 10px; letter-spacing: 2px; margin-top: 0; }
+  .header-center { flex: 1; text-align: center; }
+  .header-right { width: 44px; text-align: right; }
+
+  /* Sync dot in header */
+  .sync-dot { font-size: 13px; transition: color 0.3s; color: var(--text-muted); }
+  #sync-bar.online  ~ * .sync-dot, body.s-online  .sync-dot { color: var(--green); }
+  #sync-bar.offline ~ * .sync-dot, body.s-offline .sync-dot { color: var(--red); }
+  #sync-bar.syncing ~ * .sync-dot, body.s-syncing .sync-dot { color: var(--gold); }
+
+  /* Hamburger button */
+  .hamburger-btn {
+    width: 44px; height: 44px; background: none; border: none; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 5px; padding: 8px; border-radius: 10px; transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  .hamburger-btn:hover { background: rgba(212,160,23,0.12); }
+  .hamburger-btn span {
+    display: block; width: 22px; height: 2px; background: var(--gold);
+    border-radius: 2px; transition: all 0.25s;
+  }
+
+  /* Sidebar overlay */
+  #sidebar-overlay {
+    position: fixed; inset: 0; z-index: 300;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(2px);
+    opacity: 0; pointer-events: none; transition: opacity 0.25s;
+  }
+  #sidebar-overlay.open { opacity: 1; pointer-events: all; }
+
+  /* Sidebar panel */
+  #sidebar {
+    position: fixed; top: 0; left: 0; bottom: 0; z-index: 301;
+    width: 280px; max-width: 85vw;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+    display: flex; flex-direction: column;
+    box-shadow: 4px 0 40px rgba(0,0,0,0.6);
+  }
+  #sidebar.open { transform: translateX(0); }
+
+  .sidebar-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px; border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, #1a1610 0%, var(--surface) 100%);
+  }
+  .sidebar-title {
+    font-family: 'Bebas Neue', sans-serif; font-size: 22px;
+    letter-spacing: 4px; color: var(--gold);
+  }
+  .sidebar-close {
+    background: none; border: none; color: var(--text-muted);
+    font-size: 20px; cursor: pointer; line-height: 1; padding: 4px 8px;
+    border-radius: 6px; transition: all 0.2s;
+  }
+  .sidebar-close:hover { color: var(--text); background: var(--surface2); }
+
+  .sidebar-body { flex: 1; padding: 12px 12px; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; }
+  .sidebar-divider { height: 1px; background: var(--border); margin: 8px 0; }
+
+  .sidebar-item {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 16px; border-radius: 10px;
+    background: none; border: none; color: var(--text);
+    cursor: pointer; transition: all 0.2s; width: 100%; text-align: left;
+    font-family: 'Barlow Condensed', sans-serif; font-size: 16px;
+    letter-spacing: 1.5px; text-transform: uppercase;
+  }
+  .sidebar-item:hover { background: var(--surface2); }
+  .sidebar-item.active { background: var(--surface2); color: var(--gold); }
+  .sidebar-item-admin { color: var(--gold); }
+  .si-icon { font-size: 22px; width: 28px; text-align: center; flex-shrink: 0; }
+  .si-label { flex: 1; }
+
+  .sidebar-footer {
+    padding: 16px 20px; border-top: 1px solid var(--border);
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  #sidebar-session-who {
+    font-family: 'Barlow Condensed', sans-serif; font-size: 12px;
+    letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-muted);
+  }
+  #sidebar-session-who strong { color: var(--gold); }
+
+  /* Bottom navigation */
+  #bottom-nav {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 150;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: flex;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+    box-shadow: 0 -4px 24px rgba(0,0,0,0.5);
+  }
+  .bnav-tab {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 4px; padding: 10px 8px 12px;
+    background: none; border: none; color: var(--text-muted);
+    cursor: pointer; transition: all 0.2s; position: relative;
+    font-family: 'Barlow Condensed', sans-serif;
+  }
+  .bnav-tab::before {
+    content: ''; position: absolute; top: 0; left: 20%; right: 20%; height: 2px;
+    background: var(--gold); border-radius: 0 0 4px 4px;
+    transform: scaleX(0); transition: transform 0.2s;
+  }
+  .bnav-tab.active { color: var(--gold); }
+  .bnav-tab.active::before { transform: scaleX(1); }
+  .bnav-icon { font-size: 22px; line-height: 1; }
+  .bnav-label { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; }
+
+  /* Page content padding already set in base .page rule */
+
+  /* Pages for sidebar-only sections get full width feel */
+  #page-leaderboard, #page-pirate, #page-admin { max-width: 960px; }
+
+
+  /* ── Gallery ──────────────────────────────────────────────────────────── */
+  .gallery-note{font-family:'Barlow Condensed',sans-serif;font-size:12px;letter-spacing:1.5px;
+    text-transform:uppercase;color:var(--text-muted);margin-bottom:18px;}
+
+  .gallery-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+    gap:10px;
+  }
+
+  .gallery-card{
+    background:var(--surface2);border:1px solid var(--border);border-radius:12px;
+    overflow:hidden;position:relative;cursor:pointer;
+    transition:transform 0.18s,border-color 0.18s,box-shadow 0.18s;
+    display:flex;flex-direction:column;
+  }
+  .gallery-card:hover{transform:translateY(-3px);border-color:var(--gold);box-shadow:0 6px 24px rgba(0,0,0,0.4);}
+
+  .gallery-card-img{
+    width:100%;aspect-ratio:1/1;object-fit:cover;display:block;
+    background:var(--surface3);
+    transition:opacity 0.2s;
+  }
+  .gallery-card:hover .gallery-card-img{opacity:0.88;}
+
+  .gallery-card-meta{
+    padding:8px 10px 10px;
+  }
+  .gallery-card-quest{
+    font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:1px;
+    text-transform:uppercase;color:var(--text-dim);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    margin-bottom:3px;
+  }
+  .gallery-card-team{
+    font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:1.5px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+
+  .gallery-card-dl{
+    position:absolute;top:7px;right:7px;
+    background:rgba(0,0,0,0.65);backdrop-filter:blur(4px);
+    border:1px solid rgba(255,255,255,0.12);
+    border-radius:8px;padding:5px 8px;
+    font-size:14px;cursor:pointer;line-height:1;
+    opacity:0;transition:opacity 0.18s;
+    text-decoration:none;display:flex;align-items:center;justify-content:center;
+  }
+  .gallery-card:hover .gallery-card-dl{opacity:1;}
+
+  /* Fullscreen lightbox tweaks for gallery */
+  #gallery-lightbox{
+    position:fixed;
+    /* Use safe-area-inset so nothing hides behind notch/home indicator */
+    top: env(safe-area-inset-top, 0);
+    left: env(safe-area-inset-left, 0);
+    right: env(safe-area-inset-right, 0);
+    bottom: env(safe-area-inset-bottom, 0);
+    z-index:920;
+    background:rgba(0,0,0,0.96);
+    display:none;
+    flex-direction:column;
+    align-items:stretch;
+    justify-content:space-between;
+    overflow:hidden;
+  }
+  #gallery-lightbox.open{display:flex;}
+
+  /* Top bar — close + counter */
+  .gl-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    flex-shrink: 0;
+    background: linear-gradient(180deg, rgba(0,0,0,0.7) 0%, transparent 100%);
+  }
+  .gl-close{
+    font-size: 28px; color: #fff; cursor: pointer;
+    line-height:1; background:rgba(255,255,255,0.12); border: none;
+    border-radius: 50%; width: 44px; height: 44px;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.2s; flex-shrink: 0;
+  }
+  .gl-close:hover{ background: rgba(255,255,255,0.22); }
+  .gl-counter {
+    font-family: 'Barlow Condensed', sans-serif; font-size: 13px;
+    letter-spacing: 1.5px; text-transform: uppercase; color: rgba(255,255,255,0.5);
+  }
+
+  /* Image area — takes all remaining space, image fills it without overflow */
+  .gl-img-area {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    min-height: 0; /* critical — lets flex shrink below content size */
+    /* Padding reserves space for the 48px nav arrows on each side
+       so the image is always centred in the visual area between them */
+    padding: 0 64px;
+  }
+  #gl-img {
+    /* Never overflow the available box in any direction */
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    display: block;
+    border-radius: 6px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+    transition: opacity 0.18s;
+    /* ensure the image itself stays centred within the padded area */
+    margin: 0 auto;
+  }
+
+  /* Prev / Next arrows — overlaid on the image area, inside the padding zone */
+  .gl-nav {
+    position: absolute;
+    top: 50%; transform: translateY(-50%);
+    background: rgba(0,0,0,0.5);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 50%;
+    width: 48px; height: 48px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; cursor: pointer; color: #fff;
+    transition: all 0.18s; flex-shrink: 0;
+    z-index: 2;
+  }
+  .gl-nav:hover{ background: rgba(212,160,23,0.3); border-color: var(--gold); color: var(--gold); }
+  .gl-nav:disabled{ opacity: 0.18; pointer-events: none; }
+  #gl-prev { left: 8px; }
+  #gl-next { right: 8px; }
+
+  /* On very narrow screens reduce the side padding */
+  @media(max-width: 400px){
+    .gl-img-area { padding: 0 52px; }
+    #gl-prev { left: 4px; }
+    #gl-next { right: 4px; }
+    .gallery-grid{grid-template-columns:repeat(2,1fr);}
+  }
+
+  /* Bottom bar — caption + download */
+  .gl-bottombar {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 20px 16px;
+    flex-shrink: 0;
+    background: linear-gradient(0deg, rgba(0,0,0,0.8) 0%, transparent 100%);
+  }
+  .gl-caption{
+    font-family:'Barlow Condensed',sans-serif; font-size:13px; letter-spacing:1.5px;
+    text-transform:uppercase; color:rgba(255,255,255,0.65); text-align:center;
+  }
+  .gl-actions{ display:flex; gap:10px; align-items:center; }
+  .gl-dl-btn{
+    display:inline-flex; align-items:center; gap:8px;
+    background:var(--gold); color:#000;
+    font-family:'Barlow Condensed',sans-serif; font-size:14px; letter-spacing:1.5px;
+    text-transform:uppercase; font-weight:700; padding:10px 20px; border-radius:10px;
+    text-decoration:none; transition:background 0.2s;
+  }
+  .gl-dl-btn:hover{ background:var(--gold-light); }
+
+
+  /* ── Winner glow ──────────────────────────────────────────────────────── */
+  .lb-winner {
+    position: relative;
+    border-color: var(--gold) !important;
+    background: linear-gradient(135deg, rgba(212,160,23,0.08) 0%, var(--surface2) 60%) !important;
+    box-shadow: 0 0 0 1px rgba(212,160,23,0.4), 0 0 28px rgba(212,160,23,0.18), 0 4px 24px rgba(0,0,0,0.4) !important;
+    overflow: hidden;
+  }
+  .lb-winner::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(105deg,
+      transparent 30%,
+      rgba(212,160,23,0.08) 50%,
+      transparent 70%);
+    background-size: 200% 100%;
+    animation: winner-shine 2.4s ease-in-out infinite;
+    pointer-events: none;
+    border-radius: 12px;
+  }
+  @keyframes winner-shine {
+    0%   { background-position: 200% 0; }
+    60%  { background-position: -200% 0; }
+    100% { background-position: -200% 0; }
+  }
+  .lb-winner .lb-crown {
+    position: absolute; top: -2px; right: 12px;
+    font-size: 22px; line-height: 1;
+    filter: drop-shadow(0 0 6px rgba(212,160,23,0.7));
+    animation: crown-bob 2s ease-in-out infinite;
+  }
+  @keyframes crown-bob {
+    0%,100% { transform: translateY(0) rotate(-8deg); }
+    50%     { transform: translateY(-3px) rotate(8deg); }
+  }
+
+  /* ── Collapsible breakdown sections ───────────────────────────────────── */
+  .lb-section-hdr {
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s;
+  }
+  .lb-section-hdr:hover td { background: rgba(255,255,255,0.06) !important; }
+  .lb-section-hdr td {
+    background: rgba(255,255,255,0.03);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 12px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--text-dim); padding: 9px 12px;
+  }
+  .lb-section-hdr .sec-chevron {
+    display: inline-block;
+    margin-left: 6px;
+    font-size: 10px;
+    transition: transform 0.22s cubic-bezier(0.4,0,0.2,1);
+    vertical-align: middle;
+    opacity: 0.7;
+  }
+  .lb-section-hdr.collapsed .sec-chevron { transform: rotate(-90deg); }
+  .lb-detail-row {
+    transition: opacity 0.18s;
+  }
+  .lb-detail-row.hidden {
+    display: none;
+  }
+
+</style>
+</head>
+<body>
+
+<div id="login-overlay">
+  <div class="login-box">
+    <div class="login-icon">🍺</div>
+    <h2>Pub Crawl</h2>
+    <p>Wybierz swoją drużynę, aby kontynuować</p>
+    <div id="login-team-btns" class="login-team-btns"></div>
+    <div id="login-pw-row">
+      <div id="login-pw-label">Wpisz hasło</div>
+      <input type="password" id="login-pw-input" placeholder="···" maxlength="20" autocomplete="off">
+      <button class="btn btn-gold" onclick="window._doLogin()">Wejdź</button>
+      <div id="login-error"></div>
+      <button class="login-back-btn" onclick="window._loginBack()">← Wróć</button>
+    </div>
+  </div>
+</div>
+
+<div id="app" style="display:none;">
+  <div id="sync-bar"></div>
+  <div class="sync-indicator" id="sync-indicator">● Connecting…</div>
+
+
+
+  <!-- SIDEBAR OVERLAY -->
+  <div id="sidebar-overlay" onclick="window.closeSidebar()"></div>
+
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-title">Menu</div>
+      <button class="sidebar-close" onclick="window.closeSidebar()">✕</button>
+    </div>
+    <div class="sidebar-body">
+      <button class="sidebar-item" onclick="showPageSidebar('leaderboard')">
+        <span class="si-icon">🏆</span>
+        <span class="si-label">Tabela wyników</span>
+      </button>
+      <button class="sidebar-item" id="sidebar-gallery-btn" onclick="showPageSidebar('gallery')">
+        <span class="si-icon">📸</span>
+        <span class="si-label">Galeria zdjęć</span>
+      </button>
+      <button class="sidebar-item" id="sidebar-pirate-btn" onclick="showPageSidebar('pirate')">
+        <span class="si-icon">🎲</span>
+        <span class="si-label">???</span>
+      </button>
+      <div class="sidebar-divider"></div>
+      <button class="sidebar-item sidebar-item-admin" id="sidebar-admin-btn" onclick="showPageSidebar('admin')">
+        <span class="si-icon">⚙️</span>
+        <span class="si-label">Admin</span>
+        <span id="sidebar-badge" class="nav-badge" style="display:none">0</span>
+      </button>
+    </div>
+    <div class="sidebar-footer">
+      <div id="sidebar-session-who"></div>
+      <button class="btn-logout" onclick="window._logout()">🔒 Wyloguj</button>
+    </div>
+  </div>
+
+  <header class="app-header">
+    <button class="hamburger-btn" onclick="window.openSidebar()" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="header-center">
+      <h1>Pub Golf</h1>
+      <div class="subtitle">Zasady Golfa</div>
+    </div>
+    <div class="header-right">
+      <div class="sync-dot" id="sync-dot">●</div>
+    </div>
+  </header>
+
+  
+
+  <!-- SCORECARD -->
+  <div id="page-scorecard" class="page active">
+    <div style="margin-bottom:20px;margin-top:4px;">
+      <div class="golf-note">⛳ Zasady Golfa — Wygrywa najmniej punktów!</div>
+      <div class="section-title">Wyniki na żywo</div>
+      <div class="scoreboard" id="scoreboard"></div>
+    </div>
+    <div class="section-title">Puby</div>
+    <div class="hole-table-wrap">
+      <table>
+        <thead><tr>
+          <th class="hole-col">Pub / Dziura</th>
+          <th id="th1">Team 1</th><th id="th2">Team 2</th><th id="th3">Team 3</th>
+        </tr></thead>
+        <tbody id="hole-tbody"></tbody>
+        <tfoot id="hole-tfoot"></tfoot>
+      </table>
+    </div>
+    <div style="margin-top:10px;font-family:'Barlow Condensed',sans-serif;font-size:12px;color:var(--text-muted);letter-spacing:1px;">
+      🟠 Przerywana = oczekuje na zatwierdzenie &nbsp;·&nbsp; ✅ Zielony = zatwierdzony &nbsp;·&nbsp; Liczą się tylko zatwierdzone wyniki
+    </div>
+  </div>
+
+  <!-- QUESTS -->
+  <div id="page-quests" class="page">
+    <div class="golf-note">⚡ Punkty za zadania dodają się do wyniku · Twoja drużyna może zgłosić — admin zatwierdza</div>
+    <div class="section-title">Opcjonalne Zadania</div>
+    <div id="quest-list" class="qp-list"></div>
+  </div>
+
+  <!-- PENALTIES -->
+  <div id="page-penalties" class="page">
+    <div class="golf-note" style="background:rgba(192,57,43,0.1);border-color:rgba(192,57,43,0.35);color:#e07878;">
+      ⚠️ Kary dodają punkty (źle!) · Twoja drużyna może je zgłosić — admin zatwierdza
+    </div>
+    <div class="section-title">Kary</div>
+    <div id="penalty-list" class="qp-list"></div>
+  </div>
+
+  <!-- LEADERBOARD -->
+  <div id="page-leaderboard" class="page">
+    <div class="golf-note">⛳ Wygrywa najmniej punktów! · Liczą się tylko zatwierdzone wyniki</div>
+    <div class="section-title">Tabela wyników</div>
+    <div id="leaderboard-content"></div>
+    <div style="margin-top:28px;">
+      <div class="section-title">Pełne zestawienie</div>
+      <div id="breakdown-content"></div>
+    </div>
+  </div>
+
+  <!-- PIRATE MINIGAME -->
+  <div id="page-pirate" class="page">
+
+    <!-- Password lock -->
+    <div id="pirate-lock">
+      <div class="lock-icon">🎲</div>
+      <h2>???</h2>
+      <p>Wpisz hasło, aby wejść</p>
+      <input type="password" id="pirate-pw-input" placeholder="···" maxlength="20" autocomplete="off">
+      <button class="btn btn-gold" onclick="window._unlockPirate()">Wejdź na pokład</button>
+      <div id="pirate-pw-error"></div>
+    </div>
+
+    <!-- Active game -->
+    <div id="pirate-game">
+
+      <!-- Team spotlight -->
+      <div class="pirate-team-spotlight" id="pirate-spotlight">
+        <div class="pirate-turn-label">Czyja kolej:</div>
+        <div class="pirate-avatar" id="pirate-avatar">🎲</div>
+        <div class="pirate-team-name" id="pirate-team-name">—</div>
+        <div class="pirate-progress" id="pirate-progress"></div>
+      </div>
+
+      <!-- Dare card -->
+      <div class="pirate-dare-wrap">
+        <div class="pirate-dare-card" id="pirate-dare-card">
+          <div class="pirate-dare-type" id="pirate-dare-type">WYZWANIE</div>
+          <span class="pirate-dare-emoji" id="pirate-dare-emoji">🎲</span>
+          <div class="pirate-dare-text" id="pirate-dare-text">Naciśnij "Dalej", aby zacząć!</div>
+          <div class="pirate-dare-desc" id="pirate-dare-desc"></div>
+          <div class="pirate-counter" id="pirate-counter"></div>
+        </div>
+      </div>
+
+      <!-- Buttons -->
+      <div class="pirate-btn-row">
+        <button class="pirate-next-btn" onclick="window._pirateNext()">
+          Dalej ➜
+        </button>
+        <button class="pirate-skip-btn" onclick="window._pirateSkip()">
+          Pomiń
+        </button>
+      </div>
+      <button class="pirate-restart-btn" onclick="window._pirateRestart()">🔄 Zacznij od nowa</button>
+
+      <!-- Finished -->
+      <div class="pirate-finished" id="pirate-finished">
+        <span class="fin-icon">🏆</span>
+        <h3>Koniec rundy!</h3>
+        <p>Wszystkie wyzwania zaliczone</p>
+        <button class="btn btn-gold" onclick="window._pirateRestart()" style="margin:0 auto;">🔄 Graj ponownie</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ADMIN -->
+  <div id="page-admin" class="page">
+    <div id="admin-lock">
+      <div class="lock-icon">🔒</div>
+      <h2>Dostęp Admina</h2>
+      <p>Wpisz hasło, aby kontynuować</p>
+      <input type="password" id="admin-pw-input" placeholder="···" maxlength="20">
+      <button class="btn btn-gold" onclick="window.checkAdminPw()">Odblokuj</button>
+      <div class="lock-error" id="lock-error"></div>
+    </div>
+    <div id="admin-content">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
+        <button class="btn btn-outline btn-sm" onclick="window.lockAdmin()">🔒 Zablokuj</button>
+      </div>
+      <div class="approval-card" id="approval-section">
+        <h3>🟠 Oczekujące zatwierdzenia <span id="pending-count-badge" style="font-size:16px;color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;"></span></h3>
+        <div id="approval-list"></div>
+      </div>
+      <div class="admin-grid">
+
+        <div class="admin-card">
+          <h3>👥 Drużyny — Nazwy i zdjęcia</h3>
+          <div id="team-photos-grid" class="team-3-grid" style="margin-bottom:14px;"></div>
+          <button class="btn btn-gold" onclick="window.saveTeamNames()">Zapisz nazwy drużyn</button>
+        </div>
+
+        <div class="admin-card">
+          <h3>➕ Dodaj / Usuń drużyny</h3>
+          <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px;font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase;">
+            Maksymalnie 6 drużyn. Usunięcie drużyny usuwa wszystkie jej wyniki i dane — nie można cofnąć.
+          </p>
+          <div id="team-mgmt-list" style="margin-bottom:14px;"></div>
+          <div class="form-row" style="align-items:flex-start;flex-direction:column;gap:8px;">
+            <div style="display:flex;gap:10px;width:100%;flex-wrap:wrap;">
+              <input type="text" id="new-team-name" placeholder="Nazwa nowej drużyny…" maxlength="16" style="flex:1;min-width:140px;background:var(--surface3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;padding:9px 12px;text-transform:uppercase;">
+              <button class="btn btn-gold" onclick="window.addTeam()">+ Dodaj drużynę</button>
+            </div>
+            <div style="font-family:'Barlow Condensed',sans-serif;font-size:12px;color:var(--text-muted);letter-spacing:1px;">Wybierz kolor dla nowej drużyny:</div>
+            <div class="color-picker-row" id="new-team-colors"></div>
+          </div>
+        </div>
+
+        <div class="admin-card">
+          <h3>🔑 Zmień hasła</h3>
+          <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px;font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase;">Zostaw puste, aby zachować aktualne hasło.</p>
+          <div class="pw-grid" id="pw-grid-container"></div>
+          <div style="margin-top:12px;"><button class="btn btn-gold" onclick="window.savePasswords()">Zapisz hasła</button></div>
+        </div>
+
+        <div class="admin-card">
+          <h3>🍺 Puby / Dziury</h3>
+          <div class="form-row">
+            <input type="text" id="hole-name" placeholder="Nazwa pubu…">
+            <input type="text" id="hole-address" placeholder="Adres (opcjonalnie)">
+            <input type="url" id="hole-url" placeholder="Link lokalizacji (opcjonalnie, np. Google Maps)">
+            <select id="hole-drink"><option value="">Select drink…</option></select>
+            <input type="number" id="hole-par" placeholder="Par" min="1" max="20" style="max-width:80px;">
+            <button class="btn btn-gold" onclick="window.addHole()">Dodaj</button>
+          </div>
+          <div id="hole-list" class="item-list"></div>
+        </div>
+
+        <div class="admin-card">
+          <h3>🥃 Drink Types</h3>
+          <div class="form-row">
+            <input type="text" id="drink-name" placeholder="np. Piwo, Shot z tequili…">
+            <button class="btn btn-gold" onclick="window.addDrinkType()">Dodaj</button>
+          </div>
+          <div class="drink-tags" id="drink-tags"></div>
+        </div>
+
+        <div class="admin-card">
+          <h3>⚡ Zadania</h3>
+          <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase;">Drużyny mogą zgłaszać zadania — admin musi zatwierdzić.</p>
+          <div class="form-row">
+            <input type="text" id="quest-emoji" placeholder="🎯" style="max-width:60px;text-align:center;font-size:20px;">
+            <input type="text" id="quest-name" placeholder="Nazwa zadania…">
+            <input type="text" id="quest-desc" placeholder="Opis…">
+            <input type="number" id="quest-pts" placeholder="Punkty" min="1" style="max-width:90px;">
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;padding:10px 14px;
+            background:var(--surface3);border-radius:8px;border:1px solid var(--border);cursor:pointer;"
+            onclick="document.getElementById('quest-allow-img').click()">
+            <input type="checkbox" id="quest-allow-img"
+              style="width:18px;height:18px;accent-color:var(--gold);cursor:pointer;flex-shrink:0;">
+            <span style="font-family:'Barlow Condensed',sans-serif;font-size:13px;letter-spacing:1.5px;
+              text-transform:uppercase;color:var(--text-dim);">📸 Zezwól na zdjęcie jako dowód</span>
+          </div>
+          <button class="btn btn-gold" onclick="window.addQuest()">Dodaj zadanie</button>
+          <div id="quest-admin-list" class="item-list"></div>
+        </div>
+
+        <div class="admin-card" style="border-color:rgba(192,57,43,0.25);">
+          <h3 style="color:#e07878;">⚠️ Kary</h3>
+          <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase;">Każda drużyna może zgłosić karę na każdą drużynę · Admin zatwierdza.</p>
+          <div class="form-row">
+            <input type="text" id="penalty-emoji" placeholder="🚨" style="max-width:60px;text-align:center;font-size:20px;">
+            <input type="text" id="penalty-name" placeholder="Nazwa kary…">
+            <input type="text" id="penalty-desc" placeholder="Opis…">
+            <input type="number" id="penalty-pts" placeholder="Punkty" min="1" style="max-width:90px;">
+            <select id="penalty-type" style="max-width:140px;">
+              <option value="onetime">Jednorazowa</option>
+              <option value="repeatable">Powtarzalna</option>
+            </select>
+            <button class="btn btn-gold" onclick="window.addPenalty()">Dodaj</button>
+          </div>
+          <div id="penalty-admin-list" class="item-list"></div>
+        </div>
+
+        <div class="admin-card">
+          <h3>🎲 Ręczna korekta wyniku</h3>
+          <div class="form-row">
+            <select id="adj-team">
+              <option value="0">Team 1</option><option value="1">Team 2</option><option value="2">Team 3</option>
+            </select>
+            <input type="number" id="adj-points" placeholder="Punkty (+ lub -)">
+            <input type="text" id="adj-reason" placeholder="Powód…">
+            <button class="btn btn-gold" onclick="window.applyAdjustment()">Zastosuj</button>
+          </div>
+          <div id="adj-log" class="item-list" style="max-height:200px;overflow-y:auto;"></div>
+        </div>
+
+        <div class="admin-card" style="border-color:rgba(212,160,23,0.3);">
+          <h3>🎲 ??? — Wyzwania</h3>
+          <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px;font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase;">
+            Wyzwania są losowo tasowane. Każda drużyna po kolei dostaje jedno wyzwanie.
+          </p>
+
+          <!-- Pirate password -->
+          <div style="background:var(--surface3);border-radius:10px;padding:14px;margin-bottom:16px;border:1px solid var(--border);">
+            <div style="font-family:'Barlow Condensed',sans-serif;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold);margin-bottom:8px;">🔑 Hasło do sekcji Pirata</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <input type="password" id="pirate-section-pw" placeholder="Ustaw hasło…" maxlength="32"
+                style="flex:1;min-width:140px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+                color:var(--text);font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:4px;
+                padding:9px 12px;text-align:center;transition:border-color 0.2s;"
+                onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border)'">
+              <button class="btn btn-gold btn-sm" onclick="window._savePiratePw()">Zapisz</button>
+            </div>
+          </div>
+
+          <!-- Add dare -->
+          <div class="form-row" style="flex-direction:column;gap:8px;">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <input type="text" id="dare-emoji" placeholder="🍺" style="max-width:60px;text-align:center;font-size:20px;background:var(--surface3);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:9px 10px;">
+              <input type="text" id="dare-type" placeholder="Typ (np. WYZWANIE)" style="max-width:160px;background:var(--surface3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Barlow Condensed',sans-serif;font-size:13px;letter-spacing:1px;padding:9px 12px;">
+            </div>
+            <input type="text" id="dare-text" placeholder="Treść wyzwania…" style="width:100%;background:var(--surface3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Barlow',sans-serif;font-size:14px;padding:9px 12px;">
+            <input type="text" id="dare-desc" placeholder="Dodatkowy opis (opcjonalnie)…" style="width:100%;background:var(--surface3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Barlow',sans-serif;font-size:13px;padding:9px 12px;">
+            <button class="btn btn-gold" onclick="window._addDare()">+ Dodaj wyzwanie</button>
+          </div>
+          <div id="dare-admin-list" class="pirate-dare-list"></div>
+        </div>
+
+        <div class="admin-card" style="border-color:rgba(192,57,43,0.3);">
+          <h3 style="color:var(--red);">⚠️ Strefa zagrożenia</h3>
+          <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px;font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;">Trwale usuwa WSZYSTKIE dane gry z Firebase.</p>
+          <button class="btn btn-danger" onclick="window.resetAllData()">🗑 Zresetuj wszystkie dane</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+  <!-- GALLERY -->
+  <div id="page-gallery" class="page">
+    <div class="section-title">📸 Galeria zdjęć</div>
+    <div class="gallery-note">Zdjęcia dowodów ze wszystkich zadań · Kliknij, aby powiększyć lub pobrać</div>
+    <div id="gallery-empty" class="empty-state" style="display:none">
+      <span class="icon">📷</span>
+      Brak zdjęć — drużyny jeszcze nic nie wgrały
+    </div>
+    <div id="gallery-grid" class="gallery-grid"></div>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <nav id="bottom-nav">
+    <button class="bnav-tab active" id="bnav-scorecard" onclick="window.showPage('scorecard')">
+      <span class="bnav-icon">📋</span>
+      <span class="bnav-label">Wyniki</span>
+    </button>
+    <button class="bnav-tab" id="bnav-quests" onclick="window.showPage('quests')">
+      <span class="bnav-icon">⚡</span>
+      <span class="bnav-label">Zadania</span>
+    </button>
+    <button class="bnav-tab" id="bnav-penalties" onclick="window.showPage('penalties')">
+      <span class="bnav-icon">⚠️</span>
+      <span class="bnav-label">Kary</span>
+    </button>
+  </nav>
+
+</div>
+
+<!-- GALLERY LIGHTBOX -->
+<div id="gallery-lightbox">
+  <!-- Top bar -->
+  <div class="gl-topbar">
+    <button class="gl-close" onclick="window.glClose()">✕</button>
+    <div class="gl-counter" id="gl-counter"></div>
+    <div style="width:44px"></div><!-- spacer to balance close button -->
+  </div>
+
+  <!-- Image area with side nav arrows overlaid -->
+  <div class="gl-img-area">
+    <button class="gl-nav" id="gl-prev" onclick="window.glNav(-1)">‹</button>
+    <img id="gl-img" src="" alt="">
+    <button class="gl-nav" id="gl-next" onclick="window.glNav(1)">›</button>
+  </div>
+
+  <!-- Bottom bar -->
+  <div class="gl-bottombar">
+    <div class="gl-caption" id="gl-caption"></div>
+    <a id="gl-dl" href="" download="" class="gl-dl-btn">⬇ Pobierz zdjęcie</a>
+  </div>
+</div>
+
+<div id="lightbox">
+  <button id="lightbox-close" onclick="window.closeLightbox()">✕</button>
+  <div class="lb-img-area">
+    <img id="lightbox-img" src="" alt="">
+  </div>
+  <div id="lightbox-caption"></div>
+</div>
+
+<div id="toast"></div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getDatabase, ref, onValue, set } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+
+const FIREBASE_CONFIG = {
+  apiKey:"AIzaSyBRe0QCE45-XGxfo_kVQC1jMc-66e8cV_s",
+  authDomain:"pub-golfik.firebaseapp.com",
+  databaseURL:"https://pub-golfik-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId:"pub-golfik",storageBucket:"pub-golfik.firebasestorage.app",
+  messagingSenderId:"439184818554",appId:"1:439184818554:web:fc03b531571f30e13b96c3"
+};
+
+const DEFAULT_PW = { team0:'1', team1:'2', team2:'3', admin:'1234', pirate:'pirat' };
+
+// ── State ──────────────────────────────────────────────────────────────────
+// qAwarded[qid][ti] = 'confirmed'|'pending'
+// penalties: each has type='repeatable'|'onetime'
+// pAwarded[pid][ti] = { status:'confirmed'|'pending', count:N, pendingCount:M }
+// quests: each has allowImage=bool; qPhotos[qid][ti] = base64 string
+// teamColors[ti] = hex color string
+const S = {
+  teams:['TEAM BEER','TEAM SHOTS','TEAM WINE'],
+  teamColors:['#e8a020','#3a9fd5','#c0392b'],
+  photos:[null,null,null],
+  holes:[],
+  drinkTypes:['Pint of Lager','Tequila Shot','Cocktail','Beer Pong'],
+  scores:{},
+  quests:[],  qAwarded:{}, qPhotos:{},
+  penalties:[],pAwarded:{},
+  adjustments:[],
+  dares:[]   // [{id, emoji, type, text, desc}]
+};
+
+let PASSWORDS = {...DEFAULT_PW};
+let session = null;   // null | -1(admin) | 0|1|2
+let adminOpen = false;
+let localEditing = false;
+let db, loginTarget = null;
+
+// ── Boot ───────────────────────────────────────────────────────────────────
+try {
+  const app = initializeApp(FIREBASE_CONFIG);
+  db = getDatabase(app);
+  startListening();
+} catch(e) {
+  document.body.innerHTML=`<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;gap:16px;color:#e8dcc8;background:#0d0b08;padding:20px;text-align:center;">
+    <div style="font-size:48px">⚠️</div><div style="font-size:20px;color:#d4a017">Firebase connection failed</div>
+    <div style="font-size:14px;color:#a09070;max-width:400px">${e.message}</div></div>`;
+}
+
+function startListening() {
+  setSyncStatus('syncing');
+  onValue(ref(db,'game'), snap => {
+    if (localEditing) return;
+    const d = snap.val();
+    if (d) {
+      if (d.teams)       S.teams       = d.teams;
+      if (d.teamColors)  S.teamColors  = d.teamColors;
+      if (d.photos)      S.photos      = d.photos;
+      if (d.holes)       S.holes       = d.holes;
+      if (d.drinkTypes)  S.drinkTypes  = d.drinkTypes;
+      if (d.scores)      S.scores      = d.scores;
+      if (d.quests)      S.quests      = d.quests;
+      if (d.qAwarded)    S.qAwarded    = d.qAwarded;
+      if (d.qPhotos)     S.qPhotos     = d.qPhotos;
+      if (d.penalties)   S.penalties   = d.penalties;
+      if (d.pAwarded)    S.pAwarded    = d.pAwarded;
+      if (d.adjustments) S.adjustments = d.adjustments;
+      if (d.dares)       S.dares       = d.dares;
+    }
+    setSyncStatus('online'); rAll();
+  }, () => setSyncStatus('offline'));
+
+  onValue(ref(db,'meta/passwords'), snap => {
+    const d = snap.val();
+    if (d) PASSWORDS = {...DEFAULT_PW,...d};
+    if (session===null) 
+renderLoginScreen();
+  });
+}
+
+function persist() {
+  if (!db) return;
+  setSyncStatus('syncing');
+  set(ref(db,'game'),{
+    teams:S.teams,teamColors:S.teamColors,photos:S.photos,holes:S.holes,drinkTypes:S.drinkTypes,
+    scores:S.scores,quests:S.quests,qAwarded:S.qAwarded,qPhotos:S.qPhotos,
+    penalties:S.penalties,pAwarded:S.pAwarded,adjustments:S.adjustments,dares:S.dares
+  }).then(()=>setSyncStatus('online')).catch(()=>setSyncStatus('offline'));
+}
+function persistPw() {
+  if (!db) return;
+  set(ref(db,'meta/passwords'),PASSWORDS).then(()=>toast('Hasła zapisane!')).catch(()=>toast('Błąd zapisu haseł'));
+}
+function setSyncStatus(s) {
+  document.getElementById('sync-bar').className=s;
+  const ind=document.getElementById('sync-indicator');
+  ind.className='sync-indicator '+s;
+  ind.textContent=s==='online'?'● Live':s==='syncing'?'● Syncing…':'● Offline';
+  // update dot
+  const dot=document.getElementById('sync-dot');
+  if(dot){
+    dot.style.color=s==='online'?'var(--green)':s==='syncing'?'var(--gold)':'var(--red)';
+    dot.title=s==='online'?'Live':s==='syncing'?'Syncing…':'Offline';
+  }
+}
+
+let toastT;
+function toast(m) {
+  const el=document.getElementById('toast');
+  el.textContent=m;el.classList.add('show');
+  clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('show'),2600);
+}
+function uid(){return Math.random().toString(36).slice(2,9);}
+const TC=i=>S.teamColors[i]||['#e8a020','#3a9fd5','#c0392b','#8e44ad','#16a085','#d35400'][i]||'#888';
+
+// ── Scoring ────────────────────────────────────────────────────────────────
+function holeScore(ti){
+  return S.holes.reduce((s,h)=>{
+    const c=(S.scores[h.id]||{})[ti];
+    return s+(c&&c.status==='confirmed'?Number(c.value)||0:0);
+  },0);
+}
+function questScore(ti){
+  return S.quests.reduce((s,q)=>{
+    return s+((S.qAwarded[q.id]||{})[ti]==='confirmed'?Number(q.pts)||0:0);
+  },0);
+}
+function penaltyScore(ti){
+  return S.penalties.reduce((s,p)=>{
+    const rec=(S.pAwarded[p.id]||{})[ti]||{};
+    if(p.type==='repeatable'){
+      return s+(Number(rec.count)||0)*Number(p.pts);
+    } else {
+      return s+(rec.status==='confirmed'?Number(p.pts)||0:0);
+    }
+  },0);
+}
+function penaltyPendingForTeam(ti){
+  // returns total pending pts for a team (for display)
+  return S.penalties.reduce((s,p)=>{
+    const rec=(S.pAwarded[p.id]||{})[ti]||{};
+    if(p.type==='repeatable'){
+      return s+(Number(rec.pendingCount)||0)*Number(p.pts);
+    } else {
+      return s+(rec.status==='pending'?Number(p.pts)||0:0);
+    }
+  },0);
+}
+function adjScore(ti){
+  return S.adjustments.filter(a=>a.ti===ti).reduce((s,a)=>s+(Number(a.pts)||0),0);
+}
+function totalScore(ti){return holeScore(ti)+questScore(ti)+penaltyScore(ti)+adjScore(ti);}
+function pendingCount(){
+  let n=0;
+  Object.values(S.scores).forEach(h=>Object.values(h).forEach(c=>{if(c&&c.status==='pending')n++;}));
+  Object.values(S.qAwarded).forEach(q=>Object.values(q).forEach(s=>{if(s==='pending')n++;}));
+  S.penalties.forEach(p=>{
+    Object.values(S.pAwarded[p.id]||{}).forEach(rec=>{
+      if(!rec)return;
+      if(p.type==='repeatable'&&Number(rec.pendingCount)>0)n+=Number(rec.pendingCount);
+      else if(rec.status==='pending')n++;
+    });
+  });
+  return n;
+}
+
+// ── Login ──────────────────────────────────────────────────────────────────
+function renderLoginScreen() {
+  const c=document.getElementById('login-team-btns');
+  c.innerHTML=S.teams.map((name,i)=>`
+    <button class="login-team-btn" style="border-left:4px solid ${TC(i)}" onclick="window._loginSelect(${i})">
+      <span style="width:12px;height:12px;border-radius:50%;background:${TC(i)};display:inline-block;flex-shrink:0;"></span>
+      <span>${name}</span>
+    </button>`).join('')+
+    `<button class="login-team-btn admin-btn" onclick="window._loginSelect('admin')">
+      <span>⚙️</span><span>Admin / Widz</span>
+    </button>`;
+}
+window._loginSelect=function(t){
+  loginTarget=t;
+  document.getElementById('login-team-btns').style.display='none';
+  document.getElementById('login-pw-row').classList.add('visible');
+  document.getElementById('login-pw-label').textContent=
+    t==='admin'?'Hasło Admina / Widza':`${S.teams[t]} Hasło`;
+  document.getElementById('login-pw-input').value='';
+  document.getElementById('login-error').textContent='';
+  document.getElementById('login-pw-input').focus();
+};
+window._loginBack=function(){
+  loginTarget=null;
+  document.getElementById('login-team-btns').style.display='flex';
+  document.getElementById('login-pw-row').classList.remove('visible');
+  document.getElementById('login-error').textContent='';
+};
+window._doLogin=function(){
+  const pw=document.getElementById('login-pw-input').value;
+  const ok=loginTarget==='admin'?pw===PASSWORDS.admin:pw===PASSWORDS['team'+loginTarget];
+  if(!ok){
+    document.getElementById('login-error').textContent='✕ Złe hasło';
+    document.getElementById('login-pw-input').value='';
+    const inp=document.getElementById('login-pw-input');
+    inp.style.borderColor='var(--red)';setTimeout(()=>inp.style.borderColor='',1500);return;
+  }
+  session=loginTarget==='admin'?-1:loginTarget;
+  document.getElementById('login-overlay').classList.add('hidden');
+  document.getElementById('app').style.display='block';
+  updateSessionBar();rAll();
+};
+document.getElementById('login-pw-input').addEventListener('keydown',e=>{if(e.key==='Enter')window._doLogin();});
+window._logout=function(){
+  session=null;adminOpen=false;
+  document.getElementById('app').style.display='none';
+  document.getElementById('login-overlay').classList.remove('hidden');
+  document.getElementById('login-team-btns').style.display='flex';
+  document.getElementById('login-pw-row').classList.remove('visible');
+  
+renderLoginScreen();
+};
+function updateSessionBar(){
+  // sidebar session display
+  const who=document.getElementById('sidebar-session-who');
+  if(who){
+    if(session===-1) who.innerHTML=`Zalogowano jako <strong>Admin</strong>`;
+    else if(session!==null) who.innerHTML=`Zalogowano jako <strong style="color:${TC(session)}">${S.teams[session]}</strong>`;
+  }
+}
+
+// ── Scoreboard ─────────────────────────────────────────────────────────────
+function rScoreboard(){
+  const tots=S.teams.map((_,i)=>totalScore(i));
+  const any=tots.some(v=>v>0),min=Math.min(...tots);
+  // update scoreboard grid columns
+  const sb=document.getElementById('scoreboard');
+  sb.style.gridTemplateColumns=`repeat(${Math.min(S.teams.length,3)},1fr)`;
+  sb.innerHTML=S.teams.map((name,i)=>{
+    const lead=any&&tots[i]===min,ph=S.photos[i];
+    return `<div class="score-card" style="border-color:${lead?'var(--gold)':'var(--border)'};${lead?'box-shadow:0 0 20px rgba(212,160,23,0.2)':''}">
+      <div style="position:absolute;top:0;left:0;right:0;height:3px;background:${TC(i)};border-radius:10px 10px 0 0;"></div>
+      <div class="team-photo-wrap" style="border-color:${TC(i)}">${ph?`<img src="${ph}">`:'👥'}</div>
+      <div class="team-name" style="color:${TC(i)}">${name}</div>
+      ${lead?'<div><span class="leader-badge">⛳ Leader</span></div>':''}
+      <div class="total-score">${tots[i]}</div>
+      <div class="score-label">Points</div></div>`;
+  }).join('');
+}
+
+// ── Hole Table ─────────────────────────────────────────────────────────────
+function rHoleTable(){
+  // Dynamic column headers
+  const headerRow=document.querySelector('#hole-tbody')?.closest('table')?.querySelector('thead tr');
+  if(headerRow){
+    // rebuild headers
+    const firstTh=headerRow.querySelector('th.hole-col');
+    headerRow.innerHTML='';
+    headerRow.appendChild(firstTh);
+    S.teams.forEach((n,i)=>{
+      const th=document.createElement('th');th.id='th'+(i+1);th.style.color=TC(i);th.textContent=n;
+      headerRow.appendChild(th);
+    });
+  }
+  const tbody=document.getElementById('hole-tbody'),tfoot=document.getElementById('hole-tfoot');
+  if(!S.holes.length){
+    tbody.innerHTML=`<tr><td colspan="${S.teams.length+1}"><div class="empty-state"><span class="icon">🍺</span>Brak pubów — dodaj w Adminie</div></td></tr>`;
+    tfoot.innerHTML='';return;
+  }
+  tbody.innerHTML=S.holes.map((h,hi)=>{
+    const cells=S.teams.map((_,ti)=>{
+      const cell=(S.scores[h.id]||{})[ti]||{};
+      const ip=cell.status==='pending',ic=cell.status==='confirmed';
+      const canEdit=session===-1||session===ti;
+      return `<td><div class="score-cell">
+        <input type="number" min="0"
+          class="score-input${ip?' pending':ic?' confirmed':''}"
+          style="${ip?'border-color:var(--orange)':ic?`border-color:${TC(ti)}`:''}"
+          value="${cell.value!=null?cell.value:''}" placeholder="0"
+          onchange="window._setScore('${h.id}',${ti},this.value)"
+          onfocus="window._localEdit(true)" onblur="window._localEdit(false)"
+          ${canEdit?'':'disabled'}>
+        ${ip?'<div class="score-status pending">⏳ oczekuje</div>':''}
+        ${ic?'<div class="score-status confirmed">✅ ok</div>':''}
+      </div></td>`;
+    }).join('');
+    return `<tr><td class="hole-info">
+      <span class="hole-num">${hi+1}</span>
+      <span style="font-weight:600;color:var(--text)"> ${h.name}</span>
+      ${h.drink?`<div class="hole-drink">🥃 ${h.drink}${h.par?' · Par '+h.par:''}</div>`:h.par?`<div class="hole-drink">Par ${h.par}</div>`:''}
+      ${h.address?`<div class="hole-drink">📍 ${h.url?`<a href="${h.url}" target="_blank" rel="noopener" style="color:var(--text-muted);text-decoration:underline;text-decoration-color:var(--border);">${h.address}</a>`:h.address}</div>`:''}
+    </td>${cells}</tr>`;
+  }).join('');
+  tfoot.innerHTML=`<tr class="totals-row"><td class="label">Suma (zatwierdzone)</td>${
+    S.teams.map((_,i)=>`<td style="color:${TC(i)}">${holeScore(i)}</td>`).join('')}</tr>`;
+}
+window._localEdit=v=>{localEditing=v;};
+window._setScore=function(hid,ti,val){
+  if(session!==-1&&session!==ti){toast('To nie twój wynik!');return;}
+  if(!S.scores[hid])S.scores[hid]={};
+  // Admin edits always confirm directly.
+  // Non-admin edits ALWAYS go to pending — even if the previous value was already confirmed.
+  S.scores[hid][ti]={value:Number(val)||0,status:session===-1?'confirmed':'pending'};
+  persist();rScoreboard();rHoleTable();rLeaderboard();updateAdminBadge();
+  if(session===-1)rPendingApprovals();
+  else toast('Wynik wysłany — oczekuje na zatwierdzenie ⏳');
+};
+
+// ── Quests ─────────────────────────────────────────────────────────────────
+function rQuests(){
+  const el=document.getElementById('quest-list');
+  if(!S.quests.length){el.innerHTML=`<div class="empty-state"><span class="icon">⚡</span>Brak zadań — dodaj w Adminie</div>`;return;}
+  const isAdmin=session===-1;
+  el.innerHTML=S.quests.map(q=>{
+    const aw=S.qAwarded[q.id]||{};
+    const btns=S.teams.map((name,i)=>{
+      const st=aw[i],own=session===i,can=isAdmin||own;
+      let cls='',icon='⬜',sub='';
+      if(st==='confirmed'){cls='aw-t'+(i+1);icon='✅';}
+      else if(st==='pending'){cls='pend-t'+(i+1);icon='⏳';sub='<div style="font-size:10px">pending</div>';}
+      if(!can)cls+=' locked';
+      const style=st==='confirmed'?`background:${TC(i)}22;border-color:${TC(i)};color:${TC(i)};`
+        :st==='pending'?`background:${TC(i)}11;border:2px dashed ${TC(i)};color:${TC(i)};opacity:0.75;`:'';
+      return `<div class="qp-team-btn ${cls}" style="${style}" ${can?`onclick="window._toggleQuest('${q.id}',${i})"`:''}">
+        <div class="award-check">${icon}</div><div>${name}</div>${sub}
+      </div>`;
+    }).join('');
+
+    // per-team photo grid — only if allowImage
+    let imgHtml='';
+    if(q.allowImage){
+      const teamPhotos=S.qPhotos[q.id]||{};
+      const canUpload=session===-1||typeof session==='number';
+      imgHtml=`<div class="quest-photo-grid">`;
+      S.teams.forEach((name,ti)=>{
+        const photo=teamPhotos[ti];
+        const isMe=session===ti||session===-1;
+        if(photo){
+          imgHtml+=`<div class="quest-photo-slot">
+            <div class="qps-label" style="color:${TC(ti)}">${name}</div>
+            <img src="${photo}" onclick="openLightbox('${q.id}',${ti},'${name}')" style="cursor:zoom-in;">
+            ${isMe?`<button class="qps-del" onclick="window._removeQuestPhoto('${q.id}',${ti},event)">✕</button>`:''}
+          </div>`;
+        } else if(isMe){
+          imgHtml+=`<div class="quest-photo-slot">
+            <div class="qps-label" style="color:${TC(ti)}">${name}</div>
+            <label class="qps-add" style="cursor:pointer;" title="Upload proof for ${name}">
+              <span>📸</span><span>Dodaj dowód</span>
+              <input type="file" accept="image/*" style="display:none;" onchange="window._uploadQuestPhoto('${q.id}',${ti},this)">
+            </label>
+          </div>`;
+        } else {
+          imgHtml+=`<div class="quest-photo-slot" style="opacity:0.4;pointer-events:none;">
+            <div class="qps-label" style="color:${TC(ti)}">${name}</div>
+            <div class="qps-add"><span>📷</span><span>Brak zdjęcia</span></div>
+          </div>`;
+        }
+      });
+      imgHtml+=`</div>`;
+    }
+
+    return `<div class="qp-item">
+      <div class="qp-top">
+        <div class="qp-emoji">${q.emoji||'🎯'}</div>
+        <div class="qp-desc">
+          <strong>${q.name}</strong>
+          <span>${q.desc||''}</span>
+          ${q.allowImage?'<span style="display:inline-block;margin-top:3px;font-size:10px;font-family:\'Barlow Condensed\',sans-serif;letter-spacing:1px;text-transform:uppercase;color:var(--gold);">📸 wymagany dowód zdjęciowy</span>':''}
+        </div>
+        <div class="qp-pts quest-pts">${q.pts} pkt</div>
+      </div>
+      ${imgHtml}
+      <div class="qp-team-row" style="margin-top:10px;">${btns}</div>
+      ${!isAdmin?'<div class="qp-admin-note">Kliknij przycisk swojej drużyny · Admin potwierdza ✅</div>':''}
+    </div>`;
+  }).join('');
+}
+
+// ── Quest per-team photos ──────────────────────────────────────────────────
+window._uploadQuestPhoto=function(qid,ti,input){
+  const file=input.files[0];if(!file)return;
+  const r=new FileReader();
+  r.onload=e=>{
+    if(!S.qPhotos[qid])S.qPhotos[qid]={};
+    S.qPhotos[qid][ti]=e.target.result;
+    persist();rAll();toast(`📸 Dowód zdjęciowy dodany dla ${S.teams[ti]}!`);
+  };
+  r.readAsDataURL(file);
+};
+window._removeQuestPhoto=function(qid,ti,evt){
+  if(evt){evt.stopPropagation();}
+  if(S.qPhotos[qid])delete S.qPhotos[qid][ti];
+  persist();rAll();toast('Zdjęcie usunięte');
+};
+
+// ── Lightbox ───────────────────────────────────────────────────────────────
+window.openLightbox=function(qid,ti,teamName){
+  const photo=(S.qPhotos[qid]||{})[ti];if(!photo)return;
+  const q=S.quests.find(q=>q.id===qid);
+  document.getElementById('lightbox-img').src=photo;
+  document.getElementById('lightbox-caption').textContent=`${q?.name||''} · ${teamName} dowód`;
+  document.getElementById('lightbox').classList.add('open');
+  document.body.classList.add('lightbox-open');
+};
+window.closeLightbox=function(){
+  document.getElementById('lightbox').classList.remove('open');
+  document.getElementById('lightbox-img').src='';
+  document.body.classList.remove('lightbox-open');
+};
+document.getElementById('lightbox').addEventListener('click',function(e){
+  if(e.target===this)closeLightbox();
+});
+
+window._toggleQuest=function(qid,ti){
+  if(session!==-1&&session!==ti){toast('To nie twoja drużyna!');return;}
+  if(!S.qAwarded[qid])S.qAwarded[qid]={};
+  const cur=S.qAwarded[qid][ti];
+  if(session===-1)S.qAwarded[qid][ti]=cur==='confirmed'?undefined:'confirmed';
+  else S.qAwarded[qid][ti]=cur==='pending'?undefined:'pending';
+  if(S.qAwarded[qid][ti]===undefined)delete S.qAwarded[qid][ti];
+  persist();rAll();
+  const q=S.quests.find(q=>q.id===qid),st=(S.qAwarded[qid]||{})[ti];
+  toast(st==='confirmed'?`Zadanie przyznane dla ${S.teams[ti]}! +${q?.pts} pkt`
+    :st==='pending'?`Zadanie zgłoszone — oczekuje na admina ⏳`
+    :`Zadanie usunięte dla ${S.teams[ti]}`);
+};
+
+// ── Penalties ──────────────────────────────────────────────────────────────
+function rPenalties(){
+  const el=document.getElementById('penalty-list');
+  if(!S.penalties.length){el.innerHTML=`<div class="empty-state"><span class="icon">⚠️</span>Brak kar — dodaj w Adminie</div>`;return;}
+  const isAdmin=session===-1;
+  const repeatable=S.penalties.filter(p=>p.type==='repeatable');
+  const onetime=S.penalties.filter(p=>p.type!=='repeatable');
+
+  let html='';
+
+  // ── Section 1: Repeatable ──
+  if(repeatable.length){
+    html+=`<div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;color:var(--red);
+      margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid rgba(192,57,43,0.3);
+      display:flex;align-items:center;gap:8px;">
+      🔁 <span>Kary powtarzalne</span>
+      <span style="flex:1;height:1px;background:linear-gradient(90deg,rgba(192,57,43,0.3),transparent);margin-left:6px;"></span>
+    </div>`;
+    html+=repeatable.map(p=>{
+      const rows=S.teams.map((name,ti)=>{
+        const rec=(S.pAwarded[p.id]||{})[ti]||{count:0,pendingCount:0};
+        const confirmed=Number(rec.count)||0;
+        const pending=Number(rec.pendingCount)||0;
+        return `<div style="flex:1;min-width:80px;display:flex;flex-direction:column;align-items:center;
+          gap:6px;padding:10px 6px;border-radius:8px;border:1px solid var(--border);background:var(--surface3);">
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:1.5px;
+            text-transform:uppercase;color:${TC(ti)};margin-bottom:2px;">${name}</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:var(--red);line-height:1;">${confirmed}</div>
+            ${pending>0?`<div style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--orange);line-height:1;">+${pending}⏳</div>`:''}
+          </div>
+          <div style="font-size:10px;font-family:'Barlow Condensed',sans-serif;color:var(--text-muted);letter-spacing:1px;">potwierdzone trafienia</div>
+          <button onclick="window._addRepeatPenalty('${p.id}',${ti})"
+            style="background:var(--red);border:none;border-radius:6px;color:#fff;padding:6px 14px;
+            font-family:'Barlow Condensed',sans-serif;font-size:13px;letter-spacing:1.5px;text-transform:uppercase;
+            cursor:pointer;transition:filter 0.2s;width:100%;">+ Trafienie</button>
+        </div>`;
+      }).join('');
+      return `<div class="qp-item penalty-item" style="margin-bottom:10px;">
+        <div class="qp-top">
+          <div class="qp-emoji">${p.emoji||'🔁'}</div>
+          <div class="qp-desc"><strong>${p.name}</strong><span>${p.desc||''}</span></div>
+          <div class="qp-pts penalty-pts">+${p.pts} pkt/trafienie</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">${rows}</div>
+        ${!isAdmin?'<div class="qp-admin-note" style="margin-top:8px;">Kliknij "+ Trafienie" na dowolną drużynę · Admin potwierdza 🚨</div>':''}
+      </div>`;
+    }).join('');
+  }
+
+  // ── Section 2: One-time ──
+  if(onetime.length){
+    html+=`<div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;color:var(--red);
+      margin:${repeatable.length?'24px':0} 0 10px;padding-bottom:6px;border-bottom:1px solid rgba(192,57,43,0.3);
+      display:flex;align-items:center;gap:8px;">
+      1️⃣ <span>Kary jednorazowe</span>
+      <span style="flex:1;height:1px;background:linear-gradient(90deg,rgba(192,57,43,0.3),transparent);margin-left:6px;"></span>
+    </div>`;
+    html+=onetime.map(p=>{
+      const aw=S.pAwarded[p.id]||{};
+      const btns=S.teams.map((name,ti)=>{
+        const rec=aw[ti]||{};
+        const st=rec.status;
+        let icon='⬜',sub='';
+        if(st==='confirmed'){icon='🚨';}
+        else if(st==='pending'){icon='⏳';sub='<div style="font-size:10px">pending</div>';}
+        const style=st==='confirmed'?`background:${TC(ti)}22;border-color:${TC(ti)};color:${TC(ti)};`
+          :st==='pending'?`background:${TC(ti)}11;border:2px dashed ${TC(ti)};color:${TC(ti)};opacity:0.75;`:'';
+        return `<div class="qp-team-btn" style="${style}" onclick="window._toggleOnetimePenalty('${p.id}',${ti})">
+          <div class="award-check">${icon}</div><div>${name}</div>${sub}
+        </div>`;
+      }).join('');
+      return `<div class="qp-item penalty-item">
+        <div class="qp-top">
+          <div class="qp-emoji">${p.emoji||'🚨'}</div>
+          <div class="qp-desc"><strong>${p.name}</strong><span>${p.desc||''}</span></div>
+          <div class="qp-pts penalty-pts">+${p.pts} pkt</div>
+        </div>
+        <div class="qp-team-row">${btns}</div>
+        ${!isAdmin?'<div class="qp-admin-note">Kliknij dowolną drużynę, aby zgłosić · Admin potwierdza 🚨</div>':''}
+      </div>`;
+    }).join('');
+  }
+
+  el.innerHTML=html||'<div class="empty-state"><span class="icon">⚠️</span>Brak kar</div>';
+}
+
+window._addRepeatPenalty=function(pid,ti){
+  if(!S.pAwarded[pid])S.pAwarded[pid]={};
+  if(!S.pAwarded[pid][ti])S.pAwarded[pid][ti]={count:0,pendingCount:0};
+  const rec=S.pAwarded[pid][ti];
+  if(session===-1){
+    rec.count=(Number(rec.count)||0)+1;
+    toast(`🚨 Trafienie kary potwierdzone dla ${S.teams[ti]}!`);
+  } else {
+    rec.pendingCount=(Number(rec.pendingCount)||0)+1;
+    toast(`Trafienie zgłoszone dla ${S.teams[ti]} — oczekuje na admina ⏳`);
+  }
+  persist();rAll();
+};
+
+window._toggleOnetimePenalty=function(pid,ti){
+  if(!S.pAwarded[pid])S.pAwarded[pid]={};
+  const cur=(S.pAwarded[pid][ti]||{}).status;
+  if(session===-1){
+    if(cur==='confirmed')delete S.pAwarded[pid][ti];
+    else S.pAwarded[pid][ti]={status:'confirmed'};
+  } else {
+    if(cur==='pending')delete S.pAwarded[pid][ti];
+    else if(cur==='confirmed'){toast('Already confirmed — ask admin to remove');return;}
+    else S.pAwarded[pid][ti]={status:'pending',reportedBy:session};
+  }
+  persist();rAll();
+  const p=S.penalties.find(p=>p.id===pid),st=(S.pAwarded[pid]||{})[ti];
+  const stVal=st?st.status:undefined;
+  toast(stVal==='confirmed'?`🚨 Kara "${p?.name}" dla ${S.teams[ti]}! +${p?.pts} pkt`
+    :stVal==='pending'?`Kara zgłoszona — oczekuje na admina ⏳`
+    :`Kara usunięta dla ${S.teams[ti]}`);
+};
+
+// keep old _togglePenalty as alias (not used for new model but keep for safety)
+window._togglePenalty=window._toggleOnetimePenalty;
+
+// ── Leaderboard ────────────────────────────────────────────────────────────
+function rLeaderboard(){
+  const tots=S.teams.map((n,i)=>({name:n,score:totalScore(i),idx:i}));
+  tots.sort((a,b)=>a.score-b.score);
+  const medals=['🥇','🥈','🥉'];
+  const winner=tots[0];
+  document.getElementById('leaderboard-content').innerHTML=tots.map((t,r)=>{
+    const ph=S.photos[t.idx];
+    const isWinner = r===0 && tots.length>0;
+    return `<div style="position:relative;display:flex;align-items:center;gap:14px;padding:16px;
+      background:var(--surface2);border:1px solid var(--border);border-radius:12px;
+      margin-bottom:10px;border-left:4px solid ${TC(t.idx)};"
+      class="${isWinner?'lb-winner':''}">
+      ${isWinner?'<div class="lb-crown">👑</div>':''}
+      <div style="font-size:32px">${medals[r]||''}</div>
+      <div style="width:48px;height:48px;border-radius:50%;overflow:hidden;border:2px solid ${TC(t.idx)};
+        background:var(--surface3);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">
+        ${ph?`<img src="${ph}" style="width:100%;height:100%;object-fit:cover;">`:'👥'}
+      </div>
+      <div style="flex:1">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;color:${TC(t.idx)}">${t.name}</div>
+        <div style="font-size:12px;color:var(--text-muted);font-family:'Barlow Condensed',sans-serif;letter-spacing:1.5px;text-transform:uppercase;">
+          Holes:${holeScore(t.idx)} · Quests:+${questScore(t.idx)} · Penalties:+${penaltyScore(t.idx)} · Adj:${adjScore(t.idx)>=0?'+':''}${adjScore(t.idx)}
+        </div>
+      </div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:48px;color:${isWinner?'var(--gold)':'var(--text)'};
+        ${isWinner?'text-shadow:0 0 20px rgba(212,160,23,0.5);':''}">${t.score}</div>
+    </div>`;
+  }).join('');
+  rBreakdown();
+}
+
+// Track collapsed state per section across re-renders
+const _lbCollapsed = {holes:false, quests:false, penalties:false, adjustments:false};
+
+function _lbToggle(sec){
+  _lbCollapsed[sec] = !_lbCollapsed[sec];
+  // Toggle detail rows
+  document.querySelectorAll(`.lb-detail-${sec}`).forEach(r=>{
+    r.classList.toggle('hidden', _lbCollapsed[sec]);
+  });
+  // Rotate chevron
+  const hdr = document.querySelector(`.lb-shdr-${sec}`);
+  if(hdr) hdr.classList.toggle('collapsed', _lbCollapsed[sec]);
+}
+window._lbToggle = _lbToggle;
+
+function rBreakdown(){
+  const bel=document.getElementById('breakdown-content');
+  const nT=S.teams.length;
+
+  // helper: section header row (clickable, collapsible)
+  function secHdr(sec, icon, label, subtotCells){
+    const col = _lbCollapsed[sec];
+    return `<tr class="lb-section-hdr lb-shdr-${sec}${col?' collapsed':''}" onclick="window._lbToggle('${sec}')">
+      <td colspan="${nT+1}">${icon} ${label}
+        <span class="sec-chevron">▾</span>
+        <span style="float:right;font-family:'Barlow Condensed',sans-serif;font-size:11px;
+          letter-spacing:1px;color:var(--text-muted);padding-right:4px;line-height:1.8;">
+          ${col ? subtotCells.join(' &nbsp;·&nbsp; ') : ''}
+        </span>
+      </td>
+    </tr>`;
+  }
+
+  let h = `<div class="lb-wrap"><table class="lb-tbl">
+    <thead><tr>
+      <th class="rl">Kategoria</th>
+      ${S.teams.map((n,i)=>`<th style="color:${TC(i)}">${n}</th>`).join('')}
+    </tr></thead>
+    <tbody>`;
+
+  // ── Holes ──
+  if(S.holes.length){
+    const subtots = S.teams.map((_,ti)=>`<span style="color:${TC(ti)}">${holeScore(ti)}</span>`);
+    h += secHdr('holes','⛳','Wyniki pubów', S.teams.map((_,ti)=>`${holeScore(ti)} pkt`));
+    S.holes.forEach((hole,hi)=>{
+      h+=`<tr class="lb-detail-row lb-detail-holes${_lbCollapsed.holes?' hidden':''}">
+        <td class="rl"><span class="hole-num" style="font-size:14px">${hi+1}</span> ${hole.name}</td>`;
+      S.teams.forEach((_,ti)=>{
+        const c=(S.scores[hole.id]||{})[ti]||{};
+        if(c.status==='confirmed')h+=`<td><span class="pill conf-hole">${c.value}</span></td>`;
+        else if(c.status==='pending')h+=`<td><span class="pill pend">${c.value}⏳</span></td>`;
+        else h+=`<td style="color:var(--text-muted)">—</td>`;
+      });
+      h+=`</tr>`;
+    });
+    h+=`<tr class="sub-tot">
+      <td class="rl" style="color:var(--gold);font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;padding-left:18px;">Suma pubów</td>`;
+    S.teams.forEach((_,ti)=>h+=`<td style="font-family:'Bebas Neue',sans-serif;font-size:17px;color:${TC(ti)}">${holeScore(ti)}</td>`);
+    h+=`</tr>`;
+  }
+
+  // ── Quests ──
+  if(S.quests.length){
+    h += secHdr('quests','⚡','Zadania', S.teams.map((_,ti)=>`+${questScore(ti)} pkt`));
+    S.quests.forEach(q=>{
+      h+=`<tr class="lb-detail-row lb-detail-quests${_lbCollapsed.quests?' hidden':''}">
+        <td class="rl">${q.emoji||'🎯'} ${q.name} <span style="font-size:11px;color:var(--green)">(+${q.pts})</span></td>`;
+      S.teams.forEach((_,ti)=>{
+        const st=(S.qAwarded[q.id]||{})[ti];
+        if(st==='confirmed')h+=`<td><span class="pill conf-quest">+${q.pts}</span></td>`;
+        else if(st==='pending')h+=`<td><span class="pill pend">+${q.pts}⏳</span></td>`;
+        else h+=`<td style="color:var(--text-muted)">—</td>`;
+      });
+      h+=`</tr>`;
+    });
+    h+=`<tr class="sub-tot">
+      <td class="rl" style="color:var(--green);font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;padding-left:18px;">Suma zadań</td>`;
+    S.teams.forEach((_,ti)=>h+=`<td style="font-family:'Bebas Neue',sans-serif;font-size:17px;color:var(--green)">+${questScore(ti)}</td>`);
+    h+=`</tr>`;
+  }
+
+  // ── Penalties ──
+  if(S.penalties.length){
+    h += secHdr('penalties','⚠️','Kary', S.teams.map((_,ti)=>`+${penaltyScore(ti)} pkt`));
+    S.penalties.forEach(p=>{
+      h+=`<tr class="lb-detail-row lb-detail-penalties${_lbCollapsed.penalties?' hidden':''}">
+        <td class="rl">${p.emoji||'🚨'} ${p.name}
+          <span style="font-size:10px;color:var(--text-muted)">${p.type==='repeatable'?'(pow.)':'(1×)'}</span>
+          <span style="font-size:11px;color:var(--red)">(+${p.pts}${p.type==='repeatable'?'/trafienie':''})</span>
+        </td>`;
+      S.teams.forEach((_,ti)=>{
+        const rec=(S.pAwarded[p.id]||{})[ti]||{};
+        if(p.type==='repeatable'){
+          const cnt=Number(rec.count)||0;
+          const pc=Number(rec.pendingCount)||0;
+          if(cnt>0)h+=`<td><span class="pill conf-penalty">×${cnt}=+${cnt*p.pts}</span>${pc>0?` <span class="pill pend">+${pc}⏳</span>`:''}</td>`;
+          else if(pc>0)h+=`<td><span class="pill pend">×${pc}⏳</span></td>`;
+          else h+=`<td style="color:var(--text-muted)">—</td>`;
+        } else {
+          const st=rec.status;
+          if(st==='confirmed')h+=`<td><span class="pill conf-penalty">+${p.pts}</span></td>`;
+          else if(st==='pending')h+=`<td><span class="pill pend">+${p.pts}⏳</span></td>`;
+          else h+=`<td style="color:var(--text-muted)">—</td>`;
+        }
+      });
+      h+=`</tr>`;
+    });
+    h+=`<tr class="sub-tot">
+      <td class="rl" style="color:var(--red);font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;padding-left:18px;">Suma kar</td>`;
+    S.teams.forEach((_,ti)=>h+=`<td style="font-family:'Bebas Neue',sans-serif;font-size:17px;color:var(--red)">+${penaltyScore(ti)}</td>`);
+    h+=`</tr>`;
+  }
+
+  // ── Adjustments ──
+  if(S.adjustments.length){
+    h += secHdr('adjustments','🎲','Ręczne korekty', S.teams.map((_,ti)=>{ const v=adjScore(ti); return `${v>=0?'+':''}${v} pkt`; }));
+    S.adjustments.forEach(a=>{
+      h+=`<tr class="lb-detail-row lb-detail-adjustments${_lbCollapsed.adjustments?' hidden':''}">
+        <td class="rl" style="font-size:12px;color:var(--text-dim)">${a.reason}</td>`;
+      S.teams.forEach((_,ti)=>{
+        if(a.ti===ti)h+=`<td style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:${a.pts>=0?'var(--orange)':'var(--green)'}">${a.pts>0?'+':''}${a.pts}</td>`;
+        else h+=`<td style="color:var(--text-muted)">—</td>`;
+      });
+      h+=`</tr>`;
+    });
+    h+=`<tr class="sub-tot">
+      <td class="rl" style="color:var(--orange);font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;padding-left:18px;">Suma korekt</td>`;
+    S.teams.forEach((_,ti)=>{const v=adjScore(ti);h+=`<td style="font-family:'Bebas Neue',sans-serif;font-size:17px;color:var(--orange)">${v>=0?'+':''}${v}</td>`;});
+    h+=`</tr>`;
+  }
+
+  // ── Grand Total ──
+  h+=`<tr class="grand-tot"><td class="rl">🏆 Suma końcowa</td>`;
+  S.teams.forEach((_,ti)=>h+=`<td style="color:${TC(ti)}">${totalScore(ti)}</td>`);
+  h+=`</tr></tbody></table></div>`;
+  bel.innerHTML=h;
+}
+
+// ── Pending Approvals ──────────────────────────────────────────────────────
+function rPendingApprovals(){
+  const list=document.getElementById('approval-list');if(!list)return;
+  const rows=[];
+  for(const h of S.holes){
+    for(let ti=0;ti<S.teams.length;ti++){
+      const c=(S.scores[h.id]||{})[ti];
+      if(c&&c.status==='pending')rows.push({kind:'hole',label:h.name,ti,value:c.value,holeId:h.id});
+    }
+  }
+  for(const q of S.quests){
+    for(let ti=0;ti<S.teams.length;ti++){
+      if((S.qAwarded[q.id]||{})[ti]==='pending')rows.push({kind:'quest',label:q.name,ti,value:q.pts,qid:q.id});
+    }
+  }
+  for(const p of S.penalties){
+    for(let ti=0;ti<S.teams.length;ti++){
+      const rec=(S.pAwarded[p.id]||{})[ti]||{};
+      if(p.type==='repeatable'){
+        const pc=Number(rec.pendingCount)||0;
+        if(pc>0)rows.push({kind:'penalty',label:`${p.name} ×${pc}`,ti,value:pc*Number(p.pts),pid:p.id,repeatable:true,pendingCount:pc,ptsEach:Number(p.pts)});
+      } else {
+        if(rec.status==='pending')rows.push({kind:'penalty',label:p.name,ti,value:p.pts,pid:p.id,repeatable:false});
+      }
+    }
+  }
+  if(!rows.length){list.innerHTML=`<div class="no-pending">✅ Nic oczekującego — wszystko zatwierdzone!</div>`;return;}
+  list.innerHTML=rows.map(r=>{
+    const em=r.kind==='hole'?'⛳':r.kind==='quest'?'⚡':'⚠️';
+    let appFn,rejFn;
+    if(r.kind==='hole'){appFn=`window._approveScore('${r.holeId}',${r.ti})`;rejFn=`window._rejectScore('${r.holeId}',${r.ti})`;}
+    else if(r.kind==='quest'){appFn=`window._approveQuest('${r.qid}',${r.ti})`;rejFn=`window._rejectQuest('${r.qid}',${r.ti})`;}
+    else if(r.repeatable){appFn=`window._approveRepeatPenalty('${r.pid}',${r.ti},${r.pendingCount},${r.ptsEach})`;rejFn=`window._rejectRepeatPenalty('${r.pid}',${r.ti})`;}
+    else{appFn=`window._approveOnetimePenalty('${r.pid}',${r.ti})`;rejFn=`window._rejectOnetimePenalty('${r.pid}',${r.ti})`;}
+    return `<div class="approval-row">
+      <div class="ar-type">${em}</div>
+      <div class="ar-score">${r.value}</div>
+      <div class="ar-info">
+        <div class="ar-pub">${r.label}</div>
+        <div class="ar-team" style="color:${TC(r.ti)}">${S.teams[r.ti]}</div>
+        <span class="ar-kind ${r.kind}">${r.kind}</span>
+      </div>
+      <div class="approval-actions">
+        <button class="btn-approve" onclick="${appFn}">✓ Zatwierdź</button>
+        <button class="btn-reject" onclick="${rejFn}">✕ Odrzuć</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+window._approveScore=function(hid,ti){
+  if((S.scores[hid]||{})[ti]){S.scores[hid][ti].status='confirmed';persist();rAll();toast(`✅ Wynik pubu zatwierdzony dla ${S.teams[ti]}!`);}
+};
+window._rejectScore=function(hid,ti){
+  if(S.scores[hid]){delete S.scores[hid][ti];persist();rAll();toast(`✕ Wynik odrzucony dla ${S.teams[ti]}`);}
+};
+window._approveQuest=function(qid,ti){
+  if(!S.qAwarded[qid])S.qAwarded[qid]={};
+  S.qAwarded[qid][ti]='confirmed';persist();rAll();
+  const q=S.quests.find(q=>q.id===qid);toast(`✅ Zadanie "${q?.name}" zatwierdzone dla ${S.teams[ti]}! +${q?.pts} pkt`);
+};
+window._rejectQuest=function(qid,ti){
+  if(S.qAwarded[qid]){delete S.qAwarded[qid][ti];persist();rAll();toast(`✕ Zadanie odrzucone dla ${S.teams[ti]}`);}
+};
+window._approveRepeatPenalty=function(pid,ti,count,ptsEach){
+  if(!S.pAwarded[pid])S.pAwarded[pid]={};
+  const rec=S.pAwarded[pid][ti]||{count:0,pendingCount:0};
+  rec.count=(Number(rec.count)||0)+count;
+  rec.pendingCount=0;
+  S.pAwarded[pid][ti]=rec;
+  persist();rAll();toast(`🚨 ${count} trafień kary zatwierdzonych dla ${S.teams[ti]}! +${count*ptsEach} pkt`);
+};
+window._rejectRepeatPenalty=function(pid,ti){
+  if(!S.pAwarded[pid]||!S.pAwarded[pid][ti])return;
+  S.pAwarded[pid][ti].pendingCount=0;
+  persist();rAll();toast(`✕ Oczekujące trafienia odrzucone dla ${S.teams[ti]}`);
+};
+window._approveOnetimePenalty=function(pid,ti){
+  if(!S.pAwarded[pid])S.pAwarded[pid]={};
+  S.pAwarded[pid][ti]={status:'confirmed'};persist();rAll();
+  const p=S.penalties.find(p=>p.id===pid);toast(`🚨 Kara "${p?.name}" zatwierdzona dla ${S.teams[ti]}! +${p?.pts} pkt`);
+};
+window._rejectOnetimePenalty=function(pid,ti){
+  if(S.pAwarded[pid]){delete S.pAwarded[pid][ti];persist();rAll();toast(`✕ Kara odrzucona dla ${S.teams[ti]}`);}
+};
+window._approvePenalty=window._approveOnetimePenalty;
+window._rejectPenalty=window._rejectOnetimePenalty;
+
+function updateAdminBadge(){
+  const n=pendingCount();
+  // sidebar badge
+  const sb=document.getElementById('sidebar-badge');
+  if(sb){sb.textContent=n;sb.style.display=n>0?'inline':'none';}
+  const pb=document.getElementById('pending-count-badge');if(pb)pb.textContent=n>0?`(${n})`:'';
+}
+
+// ── Admin: password ────────────────────────────────────────────────────────
+window.checkAdminPw=function(){
+  const pw=document.getElementById('admin-pw-input').value;
+  if(pw===PASSWORDS.admin){
+    adminOpen=true;
+    document.getElementById('admin-lock').style.display='none';
+    document.getElementById('admin-content').style.display='block';
+    document.getElementById('lock-error').textContent='';rAll();
+  }else{
+    document.getElementById('lock-error').textContent='✕ Złe hasło';
+    document.getElementById('admin-pw-input').value='';
+    const inp=document.getElementById('admin-pw-input');
+    inp.style.borderColor='var(--red)';setTimeout(()=>inp.style.borderColor='',1500);
+  }
+};
+window.lockAdmin=function(){
+  adminOpen=false;
+  document.getElementById('admin-lock').style.display='flex';
+  document.getElementById('admin-content').style.display='none';
+  document.getElementById('admin-pw-input').value='';
+};
+function autoOpenAdmin(){
+  if(session===-1){adminOpen=true;
+    document.getElementById('admin-lock').style.display='none';
+    document.getElementById('admin-content').style.display='block';}
+}
+
+// ── Admin: passwords ───────────────────────────────────────────────────────
+window.savePasswords=function(){
+  S.teams.forEach((_,i)=>{
+    const v=document.getElementById('pw-input-'+i);
+    if(v&&v.value.trim())PASSWORDS['team'+i]=v.value.trim();
+  });
+  const va=document.getElementById('pw-input-admin');
+  if(va&&va.value.trim())PASSWORDS.admin=va.value.trim();
+  document.querySelectorAll('[id^="pw-input-"]').forEach(el=>el.value='');
+  persistPw();
+};
+
+// ── Admin: teams (dynamic) ─────────────────────────────────────────────────
+const TEAM_COLOR_PALETTE=['#e8a020','#3a9fd5','#c0392b','#8e44ad','#16a085','#d35400','#2980b9','#27ae60'];
+let newTeamColor=TEAM_COLOR_PALETTE[3]; // default for 4th team
+
+window.saveTeamNames=function(){
+  S.teams.forEach((_,i)=>{
+    const inp=document.getElementById('team-name-input-'+i);
+    if(inp){const v=inp.value.trim().toUpperCase();if(v)S.teams[i]=v;}
+  });
+  persist();rAll();toast('Nazwy drużyn zapisane!');
+};
+
+window.uploadPhoto=function(ti,input){
+  const file=input.files[0];if(!file)return;
+  const r=new FileReader();
+  r.onload=e=>{S.photos[ti]=e.target.result;persist();rAll();toast(`Zdjęcie ustawione dla ${S.teams[ti]}!`);};
+  r.readAsDataURL(file);
+};
+window.removePhoto=function(ti){S.photos[ti]=null;persist();rAll();toast('Zdjęcie usunięte');};
+
+function syncPhotoPreviews(){
+  S.teams.forEach((name,i)=>{
+    const circle=document.getElementById('photo-circle-'+i);
+    if(circle)circle.innerHTML=S.photos[i]?`<img src="${S.photos[i]}">`:'👥';
+    const inp=document.getElementById('team-name-input-'+i);
+    if(inp)inp.value=name;
+    const pwl=document.getElementById('pw-label-'+i);
+    if(pwl)pwl.textContent=`${name} Hasło`;
+  });
+}
+
+// Renders the team photo/name grid in admin dynamically
+function rTeamPhotosGrid(){
+  const el=document.getElementById('team-photos-grid');if(!el)return;
+  el.style.gridTemplateColumns=`repeat(${Math.min(S.teams.length,3)},1fr)`;
+  el.innerHTML=S.teams.map((name,i)=>`
+    <div class="team-col" style="--tc:${TC(i)}">
+      <label style="color:${TC(i)}">Team ${i+1}</label>
+      <div class="photo-circle" id="photo-circle-${i}" style="border-color:${TC(i)}"
+        onclick="document.getElementById('fi${i}').click()">${S.photos[i]?`<img src="${S.photos[i]}">`:'👥'}</div>
+      <input type="file" id="fi${i}" accept="image/*" onchange="uploadPhoto(${i},this)">
+      <div class="photo-hint">Kliknij, aby dodać</div>
+      <input type="text" id="team-name-input-${i}" value="${name}" maxlength="16"
+        style="background:var(--surface3);border:1px solid var(--border);border-radius:8px;color:var(--text);
+        font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;padding:7px 10px;width:100%;
+        text-align:center;transition:border-color 0.2s;" onfocus="this.style.borderColor='${TC(i)}'" onblur="this.style.borderColor='var(--border)'">
+      <button class="btn btn-danger btn-sm" onclick="removePhoto(${i})">Usuń zdjęcie</button>
+    </div>`).join('');
+}
+
+// ── Admin: add / remove teams ──────────────────────────────────────────────
+window.addTeam=function(){
+  if(S.teams.length>=6)return toast('Maksymalnie 6 drużyn!');
+  const name=document.getElementById('new-team-name').value.trim().toUpperCase();
+  if(!name)return toast('Wpisz nazwę drużyny!');
+  if(S.teams.includes(name))return toast('Nazwa drużyny już istnieje!');
+  S.teams.push(name);
+  S.teamColors.push(newTeamColor);
+  S.photos.push(null);
+  // Add password slot
+  PASSWORDS['team'+( S.teams.length-1)]=String(S.teams.length);
+  document.getElementById('new-team-name').value='';
+  persist();persistPw();rAll();toast(`Drużyna "${name}" dodana!`);
+};
+
+window.removeTeam=function(ti){
+  if(S.teams.length<=2)return toast('Wymagane minimum 2 drużyny!');
+  if(!confirm(`Usuń "${S.teams[ti]}" and ALL their data? This cannot be undone.`))return;
+  // Strip all data for this index
+  S.teams.splice(ti,1);
+  S.teamColors.splice(ti,1);
+  S.photos.splice(ti,1);
+  // Remap scores
+  Object.keys(S.scores).forEach(hid=>{
+    const newH={};
+    Object.keys(S.scores[hid]).forEach(k=>{
+      const idx=parseInt(k);
+      if(idx<ti)newH[idx]=S.scores[hid][k];
+      else if(idx>ti)newH[idx-1]=S.scores[hid][k];
+    });
+    S.scores[hid]=newH;
+  });
+  // Remap qAwarded
+  Object.keys(S.qAwarded).forEach(qid=>{
+    const newQ={};
+    Object.keys(S.qAwarded[qid]).forEach(k=>{
+      const idx=parseInt(k);
+      if(idx<ti)newQ[idx]=S.qAwarded[qid][k];
+      else if(idx>ti)newQ[idx-1]=S.qAwarded[qid][k];
+    });
+    S.qAwarded[qid]=newQ;
+  });
+  // Remap qPhotos
+  Object.keys(S.qPhotos).forEach(qid=>{
+    const newP={};
+    Object.keys(S.qPhotos[qid]).forEach(k=>{
+      const idx=parseInt(k);
+      if(idx<ti)newP[idx]=S.qPhotos[qid][k];
+      else if(idx>ti)newP[idx-1]=S.qPhotos[qid][k];
+    });
+    S.qPhotos[qid]=newP;
+  });
+  // Remap pAwarded
+  Object.keys(S.pAwarded).forEach(pid=>{
+    const newP={};
+    Object.keys(S.pAwarded[pid]).forEach(k=>{
+      const idx=parseInt(k);
+      if(idx<ti)newP[idx]=S.pAwarded[pid][k];
+      else if(idx>ti)newP[idx-1]=S.pAwarded[pid][k];
+    });
+    S.pAwarded[pid]=newP;
+  });
+  // Remap adjustments
+  S.adjustments=S.adjustments.filter(a=>a.ti!==ti).map(a=>({...a,ti:a.ti>ti?a.ti-1:a.ti}));
+  // Remap passwords
+  const newPw={admin:PASSWORDS.admin};
+  S.teams.forEach((_,i)=>{newPw['team'+i]=PASSWORDS['team'+(i<ti?i:i+1)]||String(i+1);});
+  Object.assign(PASSWORDS,newPw);
+  // If logged in as removed team, log out
+  if(session===ti){window._logout();return;}
+  if(typeof session==='number'&&session>ti)session--;
+  persist();persistPw();rAll();toast('Drużyna usunięta');
+};
+
+function rTeamMgmt(){
+  const el=document.getElementById('team-mgmt-list');if(!el)return;
+  el.innerHTML=S.teams.map((name,i)=>`
+    <div class="team-mgmt-row">
+      <div class="team-mgmt-color" style="background:${TC(i)};border:2px solid ${TC(i)};"></div>
+      <div class="team-mgmt-name" style="color:${TC(i)}">${name}</div>
+      <button class="btn btn-danger btn-sm" onclick="window.removeTeam(${i})">Usuń</button>
+    </div>`).join('');
+
+  // Color picker for new team
+  const cpEl=document.getElementById('new-team-colors');if(!cpEl)return;
+  cpEl.innerHTML=TEAM_COLOR_PALETTE.map(c=>`
+    <div class="color-opt${newTeamColor===c?' selected':''}" style="background:${c};"
+      onclick="window._pickNewTeamColor('${c}',this)"></div>`).join('');
+}
+window._pickNewTeamColor=function(c,el){
+  newTeamColor=c;
+  document.querySelectorAll('.color-opt').forEach(e=>e.classList.remove('selected'));
+  el.classList.add('selected');
+};
+
+// Dynamic password rows
+function rPasswordRows(){
+  const grid=document.getElementById('pw-grid-container');if(!grid)return;
+  grid.innerHTML=S.teams.map((name,i)=>`
+    <div class="pw-row">
+      <label id="pw-label-${i}" style="color:${TC(i)}">${name} — Hasło</label>
+      <input type="password" id="pw-input-${i}" placeholder="New…" maxlength="32">
+    </div>`).join('')+
+    `<div class="pw-row admin"><label>Admin — Hasło</label>
+      <input type="password" id="pw-input-admin" placeholder="New…" maxlength="32"></div>`;
+}
+
+// ── Admin: holes ───────────────────────────────────────────────────────────
+window.addHole=function(){
+  const name=document.getElementById('hole-name').value.trim();
+  if(!name)return toast('Wpisz nazwę pubu!');
+  const url=document.getElementById('hole-url').value.trim();
+  S.holes.push({id:uid(),name,address:document.getElementById('hole-address').value.trim(),
+    url:url||null,
+    drink:document.getElementById('hole-drink').value,par:parseInt(document.getElementById('hole-par').value)||null});
+  ['hole-name','hole-address','hole-url','hole-par'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('hole-drink').value='';
+  persist();rAll();toast(`"${name}" dodany!`);
+};
+window.removeHole=function(id){S.holes=S.holes.filter(h=>h.id!==id);delete S.scores[id];persist();rAll();toast('Pub usunięty');};
+function rHoleList(){
+  const el=document.getElementById('hole-list');if(!el)return;
+  el.innerHTML=S.holes.length
+    ?S.holes.map((h,i)=>`<div class="item-row"><span class="item-num">${i+1}</span>
+        <div class="item-text"><div>${h.name}</div>
+        <div class="item-sub">${[h.drink,h.address,h.par?'Par '+h.par:''].filter(Boolean).join(' · ')||'Brak szczegółów'}${h.url?` · <a href="${h.url}" target="_blank" rel="noopener" style="color:var(--gold);text-decoration:none;">🔗 link</a>`:''}</div></div>
+        <div class="item-actions"><button class="btn btn-danger btn-sm" onclick="window.removeHole('${h.id}')">Usuń</button></div></div>`).join('')
+    :`<div style="color:var(--text-muted);font-size:13px;padding:8px 0">Brak pubów — dodaj w Adminie</div>`;
+}
+
+// ── Admin: drink types ─────────────────────────────────────────────────────
+window.addDrinkType=function(){
+  const name=document.getElementById('drink-name').value.trim();
+  if(!name||S.drinkTypes.includes(name))return toast('Wpisz nowy rodzaj drinka!');
+  S.drinkTypes.push(name);document.getElementById('drink-name').value='';
+  persist();rDrinkTypes();toast(`Dodano "${name}"`);
+};
+window.removeDrinkType=function(name){S.drinkTypes=S.drinkTypes.filter(d=>d!==name);persist();rDrinkTypes();};
+function rDrinkTypes(){
+  const tags=document.getElementById('drink-tags');if(!tags)return;
+  tags.innerHTML=S.drinkTypes.map(d=>`<div class="drink-tag">🥃 ${d}<button onclick="window.removeDrinkType(${JSON.stringify(d)})">✕</button></div>`).join('');
+  const sel=document.getElementById('hole-drink');if(!sel)return;
+  const cur=sel.value;
+  sel.innerHTML='<option value="">Select drink…</option>'+S.drinkTypes.map(d=>`<option value="${d}"${d===cur?' selected':''}>${d}</option>`).join('');
+}
+
+// ── Admin: quests ──────────────────────────────────────────────────────────
+window.addQuest=function(){
+  const name=document.getElementById('quest-name').value.trim();
+  if(!name)return toast('Wpisz nazwę zadania!');
+  const allowImage=document.getElementById('quest-allow-img').checked;
+  S.quests.push({id:uid(),name,desc:document.getElementById('quest-desc').value.trim(),
+    emoji:document.getElementById('quest-emoji').value.trim()||'🎯',
+    pts:parseInt(document.getElementById('quest-pts').value)||5,
+    allowImage});
+  ['quest-name','quest-desc','quest-emoji','quest-pts'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('quest-allow-img').checked=false;
+  persist();rAll();toast(`Zadanie "${name}" dodane!`);
+};
+window.removeQuest=function(id){S.quests=S.quests.filter(q=>q.id!==id);delete S.qAwarded[id];persist();rAll();toast('Zadanie usunięte');};
+function rQuestAdmin(){
+  const el=document.getElementById('quest-admin-list');if(!el)return;
+  el.innerHTML=S.quests.length
+    ?S.quests.map(q=>`<div class="item-row"><span style="font-size:20px">${q.emoji}</span>
+        <div class="item-text">
+          <div>${q.name}${q.allowImage?` <span style="display:inline-block;margin-left:6px;padding:1px 7px;border-radius:10px;
+            font-size:10px;font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase;
+            background:rgba(212,160,23,0.15);color:var(--gold);border:1px solid rgba(212,160,23,0.4);">📸 photo</span>`:''}
+          </div>
+          <div class="item-sub">${q.desc||'Brak opisu'} · <strong style="color:var(--green)">+${q.pts} pkt</strong></div>
+        </div>
+        <div class="item-actions"><button class="btn btn-danger btn-sm" onclick="window.removeQuest('${q.id}')">Usuń</button></div></div>`).join('')
+    :`<div style="color:var(--text-muted);font-size:13px;padding:8px 0">No quests yet</div>`;
+}
+
+window.addPenalty=function(){
+  const name=document.getElementById('penalty-name').value.trim();
+  if(!name)return toast('Wpisz nazwę kary!');
+  const type=document.getElementById('penalty-type').value||'onetime';
+  S.penalties.push({id:uid(),name,desc:document.getElementById('penalty-desc').value.trim(),
+    emoji:document.getElementById('penalty-emoji').value.trim()||(type==='repeatable'?'🔁':'🚨'),
+    pts:parseInt(document.getElementById('penalty-pts').value)||5,
+    type});
+  ['penalty-name','penalty-desc','penalty-emoji','penalty-pts'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('penalty-type').value='onetime';
+  persist();rAll();toast(`Kara "${name}" dodana!`);
+};
+window.removePenalty=function(id){S.penalties=S.penalties.filter(p=>p.id!==id);delete S.pAwarded[id];persist();rAll();toast('Kara usunięta');};
+function rPenaltyAdmin(){
+  const el=document.getElementById('penalty-admin-list');if(!el)return;
+  el.innerHTML=S.penalties.length
+    ?S.penalties.map(p=>`<div class="item-row"><span style="font-size:20px">${p.emoji||'🚨'}</span>
+        <div class="item-text"><div>${p.name}
+          <span style="display:inline-block;margin-left:6px;padding:1px 7px;border-radius:10px;font-size:10px;
+            font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase;
+            background:${p.type==='repeatable'?'rgba(230,126,34,0.15)':'rgba(192,57,43,0.15)'};
+            color:${p.type==='repeatable'?'var(--orange)':'var(--red)'};
+            border:1px solid ${p.type==='repeatable'?'var(--orange)':'var(--red)'};">${p.type==='repeatable'?'🔁 repeatable':'1️⃣ one-time'}</span>
+        </div>
+        <div class="item-sub">${p.desc||'Brak opisu'} · <strong style="color:var(--red)">+${p.pts} pkt${p.type==='repeatable'?'/trafienie':''}</strong></div></div>
+        <div class="item-actions"><button class="btn btn-danger btn-sm" onclick="window.removePenalty('${p.id}')">Usuń</button></div></div>`).join('')
+    :`<div style="color:var(--text-muted);font-size:13px;padding:8px 0">Brak kar</div>`;
+}
+
+// ── Admin: adjustments ─────────────────────────────────────────────────────
+window.applyAdjustment=function(){
+  const ti=parseInt(document.getElementById('adj-team').value);
+  const pts=parseInt(document.getElementById('adj-points').value);
+  if(isNaN(pts))return toast('Wpisz wartość punktową!');
+  S.adjustments.push({ti,pts,reason:document.getElementById('adj-reason').value.trim()||'Manual',ts:Date.now()});
+  document.getElementById('adj-points').value='';document.getElementById('adj-reason').value='';
+  persist();rAll();toast(`${pts>0?'+':''}${pts} pkt → ${S.teams[ti]}`);
+};
+function rAdjLog(){
+  const el=document.getElementById('adj-log'),sel=document.getElementById('adj-team');
+  if(!el||!sel)return;
+  // Rebuild dropdown options dynamically
+  sel.innerHTML=S.teams.map((n,i)=>`<option value="${i}">${n}</option>`).join('');
+  el.innerHTML=S.adjustments.length
+    ?[...S.adjustments].reverse().map(a=>`<div class="item-row"><div class="item-text">
+        <div>${S.teams[a.ti]||'?'} <strong style="color:${a.pts>=0?'var(--orange)':'var(--green)'}">${a.pts>0?'+':''}${a.pts} pkt</strong></div>
+        <div class="item-sub">${a.reason}</div></div></div>`).join('')
+    :`<div style="color:var(--text-muted);font-size:13px;padding:8px 0">No adjustments yet</div>`;
+}
+
+// ── Admin: reset ───────────────────────────────────────────────────────────
+window.resetAllData=function(){
+  if(!confirm('⚠️ This will DELETE ALL game data permanently. Are you sure?'))return;
+  Object.assign(S,{teams:['TEAM BEER','TEAM SHOTS','TEAM WINE'],
+    teamColors:['#e8a020','#3a9fd5','#c0392b'],
+    photos:[null,null,null],holes:[],
+    drinkTypes:['Pint of Lager','Tequila Shot','Cocktail','Beer Pong'],
+    scores:{},quests:[],qAwarded:{},qPhotos:{},penalties:[],pAwarded:{},adjustments:[],dares:[]});
+  persist();rAll();toast('Wszystkie dane zresetowane!');
+};
+
+// ── Render all ─────────────────────────────────────────────────────────────
+function rAll(){
+  rScoreboard();rHoleTable();rQuests();rPenalties();rLeaderboard();rGallery();updateAdminBadge();
+  if(adminOpen){
+    rTeamPhotosGrid();rTeamMgmt();rPasswordRows();
+    rHoleList();rDrinkTypes();rQuestAdmin();rPenaltyAdmin();rAdjLog();
+    rPendingApprovals();syncPhotoPreviews();rDareAdmin();
+  }
+  updateSessionBar();
+}
+
+// ── Navigation ─────────────────────────────────────────────────────────────
+window.showPage=function(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  const pg=document.getElementById('page-'+id);
+  if(pg)pg.classList.add('active');
+  // bottom nav highlight
+  ['scorecard','quests','penalties'].forEach(tab=>{
+    const el=document.getElementById('bnav-'+tab);
+    if(el)el.classList.toggle('active',tab===id);
+  });
+  // sidebar items highlight
+  document.querySelectorAll('.sidebar-item').forEach(el=>el.classList.remove('active'));
+  if(id==='leaderboard')document.querySelector('.sidebar-item[onclick*="leaderboard"]')?.classList.add('active');
+  if(id==='pirate')document.getElementById('sidebar-pirate-btn')?.classList.add('active');
+  if(id==='gallery')document.getElementById('sidebar-gallery-btn')?.classList.add('active');
+  if(id==='admin')document.getElementById('sidebar-admin-btn')?.classList.add('active');
+
+  if(id==='admin'){
+    if(session===-1){autoOpenAdmin();rAll();}
+    else if(!adminOpen){document.getElementById('admin-lock').style.display='flex';document.getElementById('admin-content').style.display='none';}
+  }
+  if(id==='pirate') piratePageOpened();
+};
+window.showPageSidebar=function(id){
+  window.closeSidebar();
+  showPage(id);
+};
+window.openSidebar=function(){
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('sidebar-overlay').classList.add('open');
+};
+window.closeSidebar=function(){
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').classList.remove('open');
+};
+document.getElementById('admin-pw-input').addEventListener('keydown',e=>{if(e.key==='Enter')window.checkAdminPw();});
+
+// ── Pirate Minigame ────────────────────────────────────────────────────────
+let pirateUnlocked = false;
+let pirateQueue    = [];
+let piratePos      = -1;
+
+function shuffle(arr){const a=[...arr];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+function piratePageOpened(){
+  if(pirateUnlocked||session===-1){
+    pirateUnlocked=true;
+    document.getElementById('pirate-lock').style.display='none';
+    document.getElementById('pirate-game').classList.add('active');
+    if(piratePos===-1&&S.dares.length&&S.teams.length)_pirateBuild();
+    _pirateRender();
+  } else {
+    document.getElementById('pirate-lock').style.display='flex';
+    document.getElementById('pirate-game').classList.remove('active');
+    document.getElementById('pirate-pw-input').value='';
+    document.getElementById('pirate-pw-error').textContent='';
+  }
+}
+
+window._unlockPirate=function(){
+  const pw=document.getElementById('pirate-pw-input').value;
+  if(pw===PASSWORDS.pirate||session===-1){
+    pirateUnlocked=true;
+    document.getElementById('pirate-lock').style.display='none';
+    document.getElementById('pirate-game').classList.add('active');
+    if(piratePos===-1)_pirateBuild();
+    _pirateRender();
+  } else {
+    document.getElementById('pirate-pw-error').textContent='✕ Złe hasło';
+    document.getElementById('pirate-pw-input').value='';
+    const inp=document.getElementById('pirate-pw-input');
+    inp.style.borderColor='var(--red)';setTimeout(()=>inp.style.borderColor='',1500);
+  }
+};
+document.getElementById('pirate-pw-input').addEventListener('keydown',e=>{if(e.key==='Enter')window._unlockPirate();});
+
+function _pirateBuild(){
+  if(!S.dares.length||!S.teams.length){pirateQueue=[];piratePos=-1;return;}
+  const shuffledDares=shuffle(S.dares);
+  pirateQueue=shuffledDares.map((dare,di)=>({dare,ti:di%S.teams.length}));
+  piratePos=-1;
+}
+
+window._pirateNext=function(){
+  if(!S.dares.length){toast('Brak wyzwań — dodaj je w Adminie!');return;}
+  if(piratePos===-1&&!pirateQueue.length)_pirateBuild();
+  if(piratePos>=pirateQueue.length-1){
+    document.getElementById('pirate-finished').classList.add('active');
+    document.getElementById('pirate-dare-card').style.opacity='0.3';
+    return;
+  }
+  piratePos++;
+  _pirateRender();
+};
+
+window._pirateSkip=function(){
+  if(piratePos>=0&&piratePos<pirateQueue.length-1){
+    const skipped=pirateQueue.splice(piratePos,1)[0];
+    pirateQueue.push(skipped);
+    _pirateRender();
+  } else {
+    window._pirateNext();
+  }
+};
+
+window._pirateRestart=function(){
+  _pirateBuild();
+  document.getElementById('pirate-finished').classList.remove('active');
+  document.getElementById('pirate-dare-card').style.opacity='1';
+  _pirateRender();
+};
+
+function _pirateRender(){
+  const spotEl=document.getElementById('pirate-spotlight');
+  const avatarEl=document.getElementById('pirate-avatar');
+  const nameEl=document.getElementById('pirate-team-name');
+  const progressEl=document.getElementById('pirate-progress');
+  const emojiEl=document.getElementById('pirate-dare-emoji');
+  const typeEl=document.getElementById('pirate-dare-type');
+  const textEl=document.getElementById('pirate-dare-text');
+  const descEl=document.getElementById('pirate-dare-desc');
+  const counterEl=document.getElementById('pirate-counter');
+  const finEl=document.getElementById('pirate-finished');
+
+  if(!pirateQueue.length){
+    nameEl.textContent='Brak wyzwań';nameEl.style.color='var(--text-muted)';
+    textEl.textContent='Dodaj wyzwania w panelu Admina!';
+    descEl.textContent='';typeEl.textContent='';emojiEl.textContent='🎲';
+    counterEl.textContent='';progressEl.innerHTML='';
+    spotEl.style.setProperty('--spotlight-color','var(--gold)');return;
+  }
+
+  finEl.classList.remove('active');
+  document.getElementById('pirate-dare-card').style.opacity='1';
+
+  const idx=Math.max(0,piratePos);
+  const item=pirateQueue[idx];
+  const{dare,ti}=item;
+  const color=TC(ti);
+  spotEl.style.setProperty('--spotlight-color',color);
+  nameEl.textContent=S.teams[ti];nameEl.style.color=color;
+  avatarEl.style.setProperty('--spotlight-color',color);
+  const ph=S.photos[ti];
+  avatarEl.innerHTML=ph?`<img src="${ph}">`:'🎲';
+
+  if(piratePos===-1){
+    typeEl.textContent='NACIŚNIJ DALEJ, ABY ZACZĄĆ';
+    emojiEl.textContent='🎲';
+    textEl.textContent='Przygotujcie się!';
+    descEl.textContent='';
+    counterEl.textContent=`${pirateQueue.length} wyzwań w kolejce`;
+  } else {
+    emojiEl.style.animation='none';void emojiEl.offsetWidth;emojiEl.style.animation='';
+    const cardEl=document.getElementById('pirate-dare-card');
+    if(cardEl){cardEl.style.animation='none';void cardEl.offsetWidth;cardEl.style.animation='dare-in 0.28s cubic-bezier(0.22,1,0.36,1) both';}
+    emojiEl.textContent=dare.emoji||'🎲';
+    typeEl.textContent=dare.type||'WYZWANIE';
+    textEl.textContent=dare.text||'';
+    descEl.textContent=dare.desc||'';
+    counterEl.textContent=`${piratePos+1} / ${pirateQueue.length}`;
+  }
+
+  progressEl.innerHTML=pirateQueue.map((_,i)=>{
+    const cls=i<piratePos?'done':i===piratePos?'current':'';
+    return `<div class="pirate-pip ${cls}"></div>`;
+  }).join('');
+}
+
+// ── Admin: dare management ─────────────────────────────────────────────────
+window._addDare=function(){
+  const text=document.getElementById('dare-text').value.trim();
+  if(!text)return toast('Wpisz treść wyzwania!');
+  S.dares.push({
+    id:uid(),
+    emoji:document.getElementById('dare-emoji').value.trim()||'🎲',
+    type:(document.getElementById('dare-type').value.trim()||'WYZWANIE').toUpperCase(),
+    text,
+    desc:document.getElementById('dare-desc').value.trim()
+  });
+  ['dare-emoji','dare-type','dare-text','dare-desc'].forEach(id=>document.getElementById(id).value='');
+  piratePos=-1;pirateQueue=[];
+  persist();rDareAdmin();toast('Wyzwanie dodane!');
+};
+
+window._removeDare=function(id){
+  S.dares=S.dares.filter(d=>d.id!==id);
+  piratePos=-1;pirateQueue=[];
+  persist();rDareAdmin();toast('Wyzwanie usunięte');
+};
+
+function rDareAdmin(){
+  const el=document.getElementById('dare-admin-list');if(!el)return;
+  el.innerHTML=S.dares.length
+    ?S.dares.map(d=>`<div class="item-row">
+        <span style="font-size:20px;flex-shrink:0;">${d.emoji}</span>
+        <div class="item-text">
+          <div style="font-weight:700">${d.text}</div>
+          <div class="item-sub">${d.type}${d.desc?' · '+d.desc:''}</div>
+        </div>
+        <div class="item-actions">
+          <button class="btn btn-danger btn-sm" onclick="window._removeDare('${d.id}')">Usuń</button>
+        </div>
+      </div>`).join('')
+    :`<div style="color:var(--text-muted);font-size:13px;padding:8px 0">Brak wyzwań — dodaj powyżej</div>`;
+}
+
+window._savePiratePw=function(){
+  const v=document.getElementById('pirate-section-pw').value.trim();
+  if(!v)return toast('Wpisz hasło!');
+  PASSWORDS.pirate=v;
+  document.getElementById('pirate-section-pw').value='';
+  persistPw();toast('Hasło pirata zapisane!');
+};
+
+
+
+// ── Gallery ────────────────────────────────────────────────────────────────
+let glItems = [];   // [{src, questName, teamName, filename}]
+let glIndex  = 0;
+
+function rGallery(){
+  const grid  = document.getElementById('gallery-grid');
+  const empty = document.getElementById('gallery-empty');
+  if(!grid) return;
+
+  // Build flat list from qPhotos
+  glItems = [];
+  S.quests.forEach(q => {
+    const teamPhotos = S.qPhotos[q.id] || {};
+    S.teams.forEach((name, ti) => {
+      const src = teamPhotos[ti];
+      if(src){
+        glItems.push({
+          src,
+          questName: q.name,
+          teamName:  name,
+          teamIdx:   ti,
+          filename:  `${q.name.replace(/[^a-z0-9]/gi,'_')}_${name}.jpg`
+        });
+      }
+    });
+  });
+
+  if(!glItems.length){
+    grid.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  grid.innerHTML = glItems.map((item, idx) => `
+    <div class="gallery-card" onclick="window.glOpen(${idx})">
+      <img class="gallery-card-img" src="${item.src}" loading="lazy" alt="${item.questName}">
+      <div class="gallery-card-meta">
+        <div class="gallery-card-quest">${item.questName}</div>
+        <div class="gallery-card-team" style="color:${TC(item.teamIdx)}">${item.teamName}</div>
+      </div>
+      <a class="gallery-card-dl" href="${item.src}" download="${item.filename}"
+         onclick="event.stopPropagation()" title="Pobierz">⬇</a>
+    </div>`).join('');
+}
+
+window.glOpen = function(idx){
+  glIndex = idx;
+  _glRender();
+  document.getElementById('gallery-lightbox').classList.add('open');
+  document.body.classList.add('lightbox-open');
+};
+
+window.glClose = function(){
+  document.getElementById('gallery-lightbox').classList.remove('open');
+  document.getElementById('gl-img').src = '';
+  document.body.classList.remove('lightbox-open');
+};
+
+window.glNav = function(dir){
+  glIndex = Math.max(0, Math.min(glItems.length - 1, glIndex + dir));
+  _glRender();
+};
+
+function _glRender(){
+  const item = glItems[glIndex];
+  if(!item) return;
+  const img = document.getElementById('gl-img');
+  img.style.opacity = '0';
+  img.src = item.src;
+  img.onload = () => { img.style.transition='opacity 0.18s'; img.style.opacity='1'; };
+  document.getElementById('gl-caption').textContent = `${item.questName} · ${item.teamName}`;
+  document.getElementById('gl-counter').textContent = `${glIndex + 1} / ${glItems.length}`;
+  const dl = document.getElementById('gl-dl');
+  dl.href     = item.src;
+  dl.download = item.filename;
+  document.getElementById('gl-prev').disabled = glIndex === 0;
+  document.getElementById('gl-next').disabled = glIndex === glItems.length - 1;
+}
+
+// Close gallery lightbox on backdrop click
+document.getElementById('gallery-lightbox').addEventListener('click', function(e){
+  if(e.target === this) window.glClose();
+});
+
+// Keyboard nav for gallery lightbox
+document.addEventListener('keydown', e => {
+  if(!document.getElementById('gallery-lightbox').classList.contains('open')) return;
+  if(e.key === 'ArrowLeft')  window.glNav(-1);
+  if(e.key === 'ArrowRight') window.glNav(1);
+  if(e.key === 'Escape')     window.glClose();
+});
+
+// Touch swipe support for gallery lightbox
+(function(){
+  let startX = 0, startY = 0;
+  const lb = document.getElementById('gallery-lightbox');
+  lb.addEventListener('touchstart', e => {
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+  }, {passive:true});
+  lb.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - startX;
+    const dy = e.changedTouches[0].clientY - startY;
+    if(Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)){
+      if(dx < 0) window.glNav(1);
+      else        window.glNav(-1);
+    }
+  }, {passive:true});
+})();
+
+// Touch swipe support for quest proof lightbox
+(function(){
+  let startX = 0;
+  const lb = document.getElementById('lightbox');
+  lb.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, {passive:true});
+  lb.addEventListener('touchend',   e => {
+    if(Math.abs(e.changedTouches[0].clientX - startX) < 40) return;
+    window.closeLightbox();
+  }, {passive:true});
+})();
+
+renderLoginScreen();
+</script>
+</body>
+</html>
